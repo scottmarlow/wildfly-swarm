@@ -123,6 +123,7 @@
     <module>testsuite-messaging-remote</module>
     <module>testsuite-mod_cluster</module>
     <module>testsuite-modules</module>
+    <module>testsuite-mongodb</module>
     <module>testsuite-monitor</module>
     <module>testsuite-msc</module>
     <module>testsuite-naming</module>
