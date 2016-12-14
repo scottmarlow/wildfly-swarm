@@ -15,7 +15,9 @@
  */
 package org.wildfly.swarm.mongodb;
 
+
 import java.util.concurrent.TimeoutException;
+import javax.naming.InitialContext;
 
 import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.junit.Arquillian;
@@ -37,7 +39,7 @@ import static org.junit.Assert.assertNotNull;
 @RunWith(Arquillian.class)
 public class MongoDBArquillianTest {
 
-    @Deployment//(testable = false)
+    @Deployment(testable = true)
     public static Archive createDeployment() {
         JARArchive deployment = ShrinkWrap.create(JARArchive.class);
         deployment.add(EmptyAsset.INSTANCE, "nothing");
@@ -46,11 +48,19 @@ public class MongoDBArquillianTest {
 
     @CreateSwarm
     public static Swarm newSwarm() throws Exception {
-        return new Swarm(true).fraction(new MongoDBFraction());
+        return new Swarm(false).fraction(new MongoDBFraction());
     }
 
     @Test
     public void testNothing() throws InterruptedException, TimeoutException {
     }
 
+    @ArquillianResource
+    InitialContext context;
+
+    @Test
+    public void resourceLookup() throws Exception {
+        Object mongoDB = context.lookup("java:jboss/mongodb/test");
+        assertNotNull(mongoDB);
+    }
 }
