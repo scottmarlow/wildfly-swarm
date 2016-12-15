@@ -103,11 +103,12 @@
         </exclusion>
       </exclusions>
     </dependency>
-    <!-- Provided APIs -->
     <dependency>
         <groupId>org.mongodb</groupId>
         <artifactId>mongo-java-driver</artifactId>
+        <version>${version.mongodb.driver}</version>
     </dependency>
+    <!-- Provided APIs -->
   
   </dependencies>
 

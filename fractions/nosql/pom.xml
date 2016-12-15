@@ -22,21 +22,6 @@
 
   <packaging>pom</packaging>
 
-  <properties>
-    <version.mongodb.driver>3.2.2</version.mongodb.driver>
-  </properties>
-
-  <dependencyManagement>
-    <dependencies>
-        <dependency>
-            <groupId>org.mongodb</groupId>
-            <artifactId>mongo-java-driver</artifactId>
-            <version>${version.mongodb.driver}</version>
-        </dependency>
-       
-    </dependencies>
-  </dependencyManagement>
-
   <modules>
     <module>mongodb</module>
   </modules>
