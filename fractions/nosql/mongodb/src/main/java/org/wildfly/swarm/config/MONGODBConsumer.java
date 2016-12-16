@@ -13,25 +13,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.wildfly.swarm.mongodb;
+package org.wildfly.swarm.config;
 
-import org.wildfly.swarm.config.MONGODB;
-import org.wildfly.swarm.spi.api.Fraction;
+import java.lang.FunctionalInterface;
 
 /**
+ * MONGODBConsumer
+ *
  * @author Scott Marlow
  */
+@FunctionalInterface
+public interface MONGODBConsumer <T extends MONGODB<T>> {
 
-public class MongoDBFraction extends MONGODB<MongoDBFraction> implements Fraction<MongoDBFraction> {
-    public static MongoDBFraction createDefaultFraction() {
-        return new MongoDBFraction().applyDefaults();
-    }
+    /**
+   	 * Configure a pre-constructed instance of JAXRS resource
+   	 *
+   	 * @parameter Instance of JAXRS to configure
+   	 * @return nothing
+   	 */
+   	void accept(T value);
 
-    public MongoDBFraction applyDefaults() {
-        // set MongoDB defaults
-
-        return this;
-    }
-
+   	default MONGODBConsumer<T> andThen(MONGODBConsumer<T> after) {
+   		return (c) -> {
+   			this.accept(c);
+   			after.accept(c);
+   		};
+   	}
 
 }

@@ -48,7 +48,7 @@ public class MongoDBArquillianTest {
 
     @CreateSwarm
     public static Swarm newSwarm() throws Exception {
-        return new Swarm(false).fraction(new MongoDBFraction());
+        return new Swarm(false).fraction(MongoDBFraction.createDefaultFraction());
     }
 
     @Test

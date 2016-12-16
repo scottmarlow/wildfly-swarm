@@ -13,25 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.wildfly.swarm.mongodb;
-
-import org.wildfly.swarm.config.MONGODB;
-import org.wildfly.swarm.spi.api.Fraction;
+package org.wildfly.swarm.config;
 
 /**
+ * MONGODBSupplier
+ *
  * @author Scott Marlow
  */
+public interface MONGODBSupplier <T extends MONGODB> {
 
-public class MongoDBFraction extends MONGODB<MongoDBFraction> implements Fraction<MongoDBFraction> {
-    public static MongoDBFraction createDefaultFraction() {
-        return new MongoDBFraction().applyDefaults();
-    }
-
-    public MongoDBFraction applyDefaults() {
-        // set MongoDB defaults
-
-        return this;
-    }
-
-
+	/**
+	 * Constructed instance of MONGODB resource
+	 *
+	 * @return The instance
+	 */
+	public MONGODB get();
 }
