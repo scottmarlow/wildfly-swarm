@@ -15,14 +15,14 @@
  */
 package org.wildfly.swarm.mongodb;
 
-import org.wildfly.swarm.config.MONGODB;
+import org.wildfly.swarm.config.Mongodb;
 import org.wildfly.swarm.spi.api.Fraction;
 
 /**
  * @author Scott Marlow
  */
 
-public class MongoDBFraction extends MONGODB<MongoDBFraction> implements Fraction<MongoDBFraction> {
+public class MongoDBFraction extends Mongodb<MongoDBFraction> implements Fraction<MongoDBFraction> {
     public static MongoDBFraction createDefaultFraction() {
         return new MongoDBFraction().applyDefaults();
     }
