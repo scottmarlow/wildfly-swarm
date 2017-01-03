@@ -55,6 +55,7 @@ public class MongoDBArquillianTest {
                         .jndiName("java:jboss/mongodb/test")
                         .id("mongodbtestprofile")
                         .securityDomain("mongoRealm")
+
                 )
         );
     }
@@ -63,12 +64,12 @@ public class MongoDBArquillianTest {
     public void testNothing() throws InterruptedException, TimeoutException {
     }
 
-//    @ArquillianResource
-//    InitialContext context;
+    @ArquillianResource
+    InitialContext context;
 
-//    @Test
-//    public void resourceLookup() throws Exception {
-//        Object mongoDB = context.lookup("java:jboss/mongodb/test");
-//        assertNotNull(mongoDB);
-//    }
+    @Test
+    public void resourceLookup() throws Exception {
+        Object mongoDB = context.lookup("java:jboss/mongodb/test");
+        assertNotNull(mongoDB);
+    }
 }

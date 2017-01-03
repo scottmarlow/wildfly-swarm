@@ -17,11 +17,15 @@ package org.wildfly.swarm.mongodb;
 
 import org.wildfly.swarm.config.Mongodb;
 import org.wildfly.swarm.spi.api.Fraction;
+import org.wildfly.swarm.spi.api.annotations.MarshalDMR;
+import org.wildfly.swarm.spi.api.annotations.WildFlyExtension;
 
 /**
  * @author Scott Marlow
  */
 
+@WildFlyExtension(module = "org.wildfly.extension.nosql.mongodb")
+@MarshalDMR
 public class MongoDBFraction extends Mongodb<MongoDBFraction> implements Fraction<MongoDBFraction> {
     public static MongoDBFraction createDefaultFraction() {
         return new MongoDBFraction().applyDefaults();
