@@ -27,8 +27,10 @@ import org.jboss.shrinkwrap.api.asset.EmptyAsset;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.wildfly.swarm.Swarm;
+import org.wildfly.swarm.management.ManagementFraction;
 import org.wildfly.swarm.arquillian.CreateSwarm;
 import org.wildfly.swarm.spi.api.JARArchive;
+import org.wildfly.swarm.spi.api.OutboundSocketBinding;
 import org.wildfly.swarm.config.mongodb.Mongo;
 
 import static org.junit.Assert.assertNotNull;
@@ -48,13 +50,28 @@ public class MongoDBArquillianTest {
 
     @CreateSwarm
     public static Swarm newSwarm() throws Exception {
-        return new Swarm(false).fraction(new MongoDBFraction()
+        return new Swarm(false)
+/*
+                .outboundSocketBinding("standard-sockets",
+                        new OutboundSocketBinding("mongotesthost")
+                                .remoteHost("localhost")
+                                .remotePort(27017))
+*/
+/*
+                .fraction(new ManagementFraction()
+                        .securityRealm("mongoRealm", (realm) -> {
+                            realm.inMemoryAuthentication( (authn)->{
+                                authn.add( "devuser", "changethis", false );
+                            });
+                        }))
+*/
+                .fraction(new MongoDBFraction()
                 .mongo(new Mongo("mongodbtestprofile")
                         .host("mongotesthost")
                         .database("mongotestdb")
                         .jndiName("java:jboss/mongodb/test")
                         .id("mongodbtestprofile")
-                        .securityDomain("mongoRealm")
+                        // .securityDomain("mongoRealm")
 
                 )
         );

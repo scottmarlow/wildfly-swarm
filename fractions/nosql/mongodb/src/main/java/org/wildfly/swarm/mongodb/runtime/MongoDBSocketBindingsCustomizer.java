@@ -20,7 +20,7 @@ import javax.inject.Named;
 import javax.inject.Singleton;
 
 import org.wildfly.swarm.spi.api.Customizer;
-import org.wildfly.swarm.spi.api.SocketBinding;
+import org.wildfly.swarm.spi.api.OutboundSocketBinding;
 import org.wildfly.swarm.spi.api.SocketBindingGroup;
 import org.wildfly.swarm.spi.runtime.annotations.Pre;
 import org.wildfly.swarm.mongodb.MongoDBFraction;
@@ -40,9 +40,11 @@ public class MongoDBSocketBindingsCustomizer implements Customizer {
     MongoDBFraction fraction;
 
     public void customize() {
-        this.group.socketBinding(
-                new SocketBinding("host")
-                        .port(fraction.host()));
+        this.group.outboundSocketBinding(
+                new OutboundSocketBinding("mongotesthost")
+                        .remoteHost("localhost")
+                        .remotePort("27017")
+            );
     }
 
 }
