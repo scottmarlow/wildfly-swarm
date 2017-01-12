@@ -23,6 +23,7 @@
   <packaging>pom</packaging>
 
   <modules>
+    <module>cassandra</module>
     <module>mongodb</module>
   </modules>
 
