@@ -16,8 +16,11 @@
 package org.wildfly.swarm.cassandra;
 
 import java.util.concurrent.TimeoutException;
+import javax.inject.Inject;
+import javax.inject.Named;
 import javax.naming.InitialContext;
 
+import com.datastax.driver.core.Cluster;
 import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.junit.Arquillian;
 import org.jboss.arquillian.test.api.ArquillianResource;
@@ -29,25 +32,20 @@ import org.junit.runner.RunWith;
 import org.wildfly.swarm.Swarm;
 import org.wildfly.swarm.management.ManagementFraction;
 import org.wildfly.swarm.arquillian.CreateSwarm;
-import org.wildfly.swarm.spi.api.JARArchive;
+import org.wildfly.swarm.arquillian.DefaultDeployment;
 import org.wildfly.swarm.spi.api.OutboundSocketBinding;
 import org.wildfly.swarm.config.cassandradriver.Cassandra;
 import org.wildfly.swarm.config.cassandradriver.cassandra.Host;
 
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * @author Scott Marlow
  */
 @RunWith(Arquillian.class)
+@DefaultDeployment
 public class CassandraArquillianTest {
-
-    @Deployment(testable = true)
-    public static Archive createDeployment() {
-        JARArchive deployment = ShrinkWrap.create(JARArchive.class);
-        deployment.add(EmptyAsset.INSTANCE, "nothing");
-        return deployment;
-    }
 
     @CreateSwarm
     public static Swarm newSwarm() throws Exception {
@@ -80,4 +78,14 @@ public class CassandraArquillianTest {
         Object cassandra = context.lookup("java:jboss/cassandradriver/test");
         assertNotNull(cassandra);
     }
+    
+    @Inject
+    @Named("cassandratestprofile")
+    private Cluster connection;
+   
+    @Test
+    public void injectDatabaseConnection() throws Exception {
+       assertNotNull(connection);
+    }
+
 }
