@@ -17,6 +17,8 @@ package org.wildfly.swarm.neo4j;
 
 import java.util.concurrent.TimeoutException;
 import javax.naming.InitialContext;
+import javax.inject.Inject;
+import javax.inject.Named;
 
 import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.junit.Arquillian;
@@ -29,10 +31,13 @@ import org.junit.runner.RunWith;
 import org.wildfly.swarm.Swarm;
 import org.wildfly.swarm.management.ManagementFraction;
 import org.wildfly.swarm.arquillian.CreateSwarm;
+import org.wildfly.swarm.arquillian.DefaultDeployment;
 import org.wildfly.swarm.spi.api.JARArchive;
 import org.wildfly.swarm.spi.api.OutboundSocketBinding;
 import org.wildfly.swarm.config.neo4jdriver.Neo4j;
 import org.wildfly.swarm.config.neo4jdriver.neo4j.Host;
+
+import org.neo4j.driver.v1.Driver;
 
 import static org.junit.Assert.assertNotNull;
 
@@ -40,6 +45,7 @@ import static org.junit.Assert.assertNotNull;
  * @author Scott Marlow
  */
 @RunWith(Arquillian.class)
+@DefaultDeployment
 public class Neo4jArquillianTest {
 
     @Deployment(testable = true)
@@ -80,4 +86,14 @@ public class Neo4jArquillianTest {
         Object cassandra = context.lookup("java:jboss/neo4jdriver/test");
         assertNotNull(cassandra);
     }
+
+    @Inject
+    @Named("neo4jtestprofile")
+ Driver database;
+
+    @Test
+    public void injectDatabaseConnection() throws Exception {
+        assertNotNull(database);
+    }
+
 }

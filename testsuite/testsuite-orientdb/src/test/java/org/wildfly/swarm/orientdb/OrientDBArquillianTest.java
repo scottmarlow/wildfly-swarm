@@ -16,8 +16,11 @@
 package org.wildfly.swarm.orientdb;
 
 import java.util.concurrent.TimeoutException;
+import javax.inject.Inject;
+import javax.inject.Named;
 import javax.naming.InitialContext;
 
+import com.orientechnologies.orient.core.db.OPartitionedDatabasePool;
 import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.junit.Arquillian;
 import org.jboss.arquillian.test.api.ArquillianResource;
@@ -35,6 +38,7 @@ import org.wildfly.swarm.config.orientdb.Orient;
 import org.wildfly.swarm.config.orientdb.orient.Host;
 
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * @author Scott Marlow
@@ -81,4 +85,14 @@ public class OrientDBArquillianTest {
         Object connection = context.lookup("java:jboss/orientdb/test");
         assertNotNull(connection);
     }
+    
+    @Inject
+    @Named("orienttesttprofile")
+    private OPartitionedDatabasePool databasePool;
+
+    @Test
+    public void injectDatabaseConnection() throws Exception {
+       assertNotNull(databasePool);
+    }
+
 }
