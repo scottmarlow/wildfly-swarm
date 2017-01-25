@@ -23,7 +23,6 @@
   <properties>
     <swarm.fraction.stability>experimental</swarm.fraction.stability>
     <swarm.fraction.tags>NoSQL,Neo4j,Data</swarm.fraction.tags>
-    <version.neo4j.driver>1.0.1</version.neo4j.driver>
   </properties>
 
   <build>
@@ -112,12 +111,6 @@
             <groupId>org.neo4j.driver</groupId>
             <artifactId>neo4j-java-driver</artifactId>
             <version>${version.neo4j.driver}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>*</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
     <!-- Provided APIs -->
   
