@@ -32,6 +32,7 @@ import org.junit.runner.RunWith;
 import org.wildfly.swarm.Swarm;
 import org.wildfly.swarm.management.ManagementFraction;
 import org.wildfly.swarm.arquillian.CreateSwarm;
+import org.wildfly.swarm.arquillian.DefaultDeployment;
 import org.wildfly.swarm.spi.api.JARArchive;
 import org.wildfly.swarm.spi.api.OutboundSocketBinding;
 import org.wildfly.swarm.config.orientdb.Orient;
@@ -44,14 +45,8 @@ import static org.junit.Assert.assertTrue;
  * @author Scott Marlow
  */
 @RunWith(Arquillian.class)
+@DefaultDeployment
 public class OrientDBArquillianTest {
-
-    @Deployment(testable = true)
-    public static Archive createDeployment() {
-        JARArchive deployment = ShrinkWrap.create(JARArchive.class);
-        deployment.add(EmptyAsset.INSTANCE, "nothing");
-        return deployment;
-    }
 
     @CreateSwarm
     public static Swarm newSwarm() throws Exception {
@@ -88,6 +83,7 @@ public class OrientDBArquillianTest {
     
     @Inject
     @Named("orienttesttprofile")
+    // private Object databasePool;
     private OPartitionedDatabasePool databasePool;
 
     @Test
