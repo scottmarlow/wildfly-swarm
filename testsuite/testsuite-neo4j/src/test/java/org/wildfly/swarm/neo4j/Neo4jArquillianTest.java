@@ -20,19 +20,14 @@ import javax.naming.InitialContext;
 import javax.inject.Inject;
 import javax.inject.Named;
 
-import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.junit.Arquillian;
 import org.jboss.arquillian.test.api.ArquillianResource;
-import org.jboss.shrinkwrap.api.Archive;
-import org.jboss.shrinkwrap.api.ShrinkWrap;
-import org.jboss.shrinkwrap.api.asset.EmptyAsset;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.wildfly.swarm.Swarm;
 import org.wildfly.swarm.management.ManagementFraction;
 import org.wildfly.swarm.arquillian.CreateSwarm;
 import org.wildfly.swarm.arquillian.DefaultDeployment;
-import org.wildfly.swarm.spi.api.JARArchive;
 import org.wildfly.swarm.spi.api.OutboundSocketBinding;
 import org.wildfly.swarm.config.neo4jdriver.Neo4j;
 import org.wildfly.swarm.config.neo4jdriver.neo4j.Host;
@@ -47,13 +42,6 @@ import static org.junit.Assert.assertNotNull;
 @RunWith(Arquillian.class)
 @DefaultDeployment
 public class Neo4jArquillianTest {
-
-    @Deployment(testable = true)
-    public static Archive createDeployment() {
-        JARArchive deployment = ShrinkWrap.create(JARArchive.class);
-        deployment.add(EmptyAsset.INSTANCE, "nothing");
-        return deployment;
-    }
 
     @CreateSwarm
     public static Swarm newSwarm() throws Exception {
@@ -89,7 +77,8 @@ public class Neo4jArquillianTest {
 
     @Inject
     @Named("neo4jtestprofile")
- Driver database;
+    Driver database;
+    // Object database;
 
     @Test
     public void injectDatabaseConnection() throws Exception {
