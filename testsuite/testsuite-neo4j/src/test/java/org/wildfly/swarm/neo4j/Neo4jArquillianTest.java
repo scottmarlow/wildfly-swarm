@@ -52,12 +52,12 @@ public class Neo4jArquillianTest {
                                 .remoteHost("localhost")
                                 .remotePort(9042))
                 .fraction(new Neo4jFraction()
-                .neo4j(new Neo4j("neo4jtesttprofile")
-                        .host(new Host("casstesthost")
+                .neo4j(new Neo4j("neo4jtestprofile")
+                        .host(new Host("neo4jtesthost")
                             .outboundSocketBindingRef("neo4jtesthost")
                         )
                         .jndiName("java:jboss/neo4jdriver/test")
-                        .id("neo4jtesttprofile")
+                        .id("neo4jtestprofile")
                 )
         );
     }
@@ -71,8 +71,8 @@ public class Neo4jArquillianTest {
 
     @Test
     public void resourceLookup() throws Exception {
-        Object cassandra = context.lookup("java:jboss/neo4jdriver/test");
-        assertNotNull(cassandra);
+        Object connection = context.lookup("java:jboss/neo4jdriver/test");
+        assertNotNull(connection);
     }
 
     @Inject
