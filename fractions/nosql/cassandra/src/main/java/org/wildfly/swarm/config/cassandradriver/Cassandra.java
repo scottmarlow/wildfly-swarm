@@ -29,6 +29,7 @@ public class Cassandra<T extends Cassandra<T>> extends HashMap
 	private String id;
 	private String jndiName;
 	private String module;
+	private String securityDomain;
 
 	public Cassandra(java.lang.String key) {
 		super();
@@ -231,6 +232,26 @@ public class Cassandra<T extends Cassandra<T>> extends HashMap
 		this.module = value;
 		if (this.pcs != null)
 			this.pcs.firePropertyChange("module", oldValue, value);
+		return (T) this;
+	}
+
+	/**
+	 * Security domain name
+	 */
+	@ModelNodeBinding(detypedName = "security-domain")
+	public String securityDomain() {
+		return this.securityDomain;
+	}
+
+	/**
+	 * Security domain name
+	 */
+	@SuppressWarnings("unchecked")
+	public T securityDomain(java.lang.String value) {
+		Object oldValue = this.securityDomain;
+		this.securityDomain = value;
+		if (this.pcs != null)
+			this.pcs.firePropertyChange("securityDomain", oldValue, value);
 		return (T) this;
 	}
 }
