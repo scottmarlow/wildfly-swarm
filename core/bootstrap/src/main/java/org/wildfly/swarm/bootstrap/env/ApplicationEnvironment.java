@@ -13,6 +13,7 @@ import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
@@ -20,6 +21,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.jboss.modules.Module;
 import org.jboss.modules.ModuleIdentifier;
 import org.jboss.modules.ModuleLoadException;
+import org.wildfly.swarm.bootstrap.performance.Performance;
 import org.wildfly.swarm.bootstrap.util.BootstrapProperties;
 import org.wildfly.swarm.bootstrap.util.MavenArtifactDescriptor;
 import org.yaml.snakeyaml.Yaml;
@@ -54,7 +56,11 @@ public class ApplicationEnvironment {
                 return env;
             }
 
-            return new ApplicationEnvironment();
+            try (AutoCloseable handle = Performance.time("Load application environment")) {
+                return new ApplicationEnvironment();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
         });
     }
 
@@ -81,32 +87,36 @@ public class ApplicationEnvironment {
     private void loadDependencyTree() {
         final String cpInfoProp = System.getProperty("swarm.cp.info");
 
-        if (cpInfoProp != null) {
-            try {
+        if (cpInfoProp == null) {
+            return;
+        }
 
-                DependencyTree<MavenArtifactDescriptor> dependencyTree = new DependencyTree<>();
+        final DependencyTree<MavenArtifactDescriptor> dependencyTree = new DependencyTree<>();
+        final Yaml yaml = new Yaml();
 
-                Yaml yaml = new Yaml();
-                Map<String, Object> data = (Map) yaml.load(new FileInputStream(cpInfoProp));
-                for (String directDep : data.keySet()) {
-                    MavenArtifactDescriptor parent = MavenArtifactDescriptor.fromMavenGav(directDep);
-                    Collection<String> transientDeps = (Collection<String>) data.get(directDep);
-                    for (String transientDep : transientDeps) {
+        try (final FileInputStream fileStream = new FileInputStream(cpInfoProp)) {
+            @SuppressWarnings("unchecked")
+            final Map<String, Collection<String>> data = yaml.loadAs(fileStream, Map.class);
+
+            for (final Entry<String, Collection<String>> entry : data.entrySet()) {
+                final MavenArtifactDescriptor parent = MavenArtifactDescriptor.fromMavenGav(entry.getKey());
+                final Collection<String> transientDeps = entry.getValue();
+                if (transientDeps != null && !transientDeps.isEmpty()) {
+                    for (final String transientDep : transientDeps) {
                         dependencyTree.add(
                                 parent,
                                 MavenArtifactDescriptor.fromMavenGav(transientDep)
                         );
                     }
-
-                    if (transientDeps.isEmpty()) {
-                        dependencyTree.add(parent);
-                    }
+                } else {
+                    dependencyTree.add(parent);
                 }
-                this.dependencyTree = Optional.of(dependencyTree);
-
-            } catch (Exception e) {
-                throw new RuntimeException("Failed to load cp info", e);
             }
+
+            this.dependencyTree = Optional.of(dependencyTree);
+
+        } catch (final IOException e) {
+            throw new RuntimeException("Failed to load cp info", e);
         }
     }
 
@@ -191,6 +201,7 @@ public class ApplicationEnvironment {
         this.manifests = new ArrayList<>();
 
         Enumeration<URL> results = cl.getResources(FractionManifest.CLASSPATH_LOCATION);
+        Set<MavenArtifactDescriptor> fractionDependencies = new HashSet<>();
 
         while (results.hasMoreElements()) {
             URL each = results.nextElement();
@@ -201,65 +212,45 @@ public class ApplicationEnvironment {
             }
             if (this.mode == Mode.CLASSPATH) {
 
-                Set<MavenArtifactDescriptor> applicationDependencies = new HashSet<>();
+                MavenArtifactDescriptor fraction = new MavenArtifactDescriptor(
+                        manifest.getGroupId(),
+                        manifest.getArtifactId(),
+                        manifest.getVersion()
+                );
 
                 if (dependencyTree.isPresent()) {
 
-                    Set<MavenArtifactDescriptor> topLevelFractions = new HashSet<>();
-
-                    MavenArtifactDescriptor source = new MavenArtifactDescriptor(
-                            manifest.getGroupId(),
-                            manifest.getArtifactId(),
-                            manifest.getVersion()
-                    );
-
-                    for (MavenArtifactDescriptor target : dependencyTree.get().getDirectDeps()) {
-                        if (source.equals(target)) {
-                            topLevelFractions.add(target);
+                    for (MavenArtifactDescriptor directDep : dependencyTree.get().getDirectDeps()) {
+                        if (fraction.equals(directDep)) {
+                            fractionDependencies.add(directDep);
                         }
                     }
 
-                    Set<MavenArtifactDescriptor> keep = new HashSet<>(dependencyTree.get().getDirectDeps());
-                    keep.removeAll(topLevelFractions);
-
-                    for (MavenArtifactDescriptor dep : keep) {
-                        // the dep itself
-                        applicationDependencies.add(dep);
-
-                        // it's transient dependencies
-                        applicationDependencies.addAll(dependencyTree.get().getTransientDeps(dep));
-                    }
-
-
                 }
 
+                this.removeableDependencies.add(fraction.mavenGav());
                 this.removeableDependencies.addAll(manifest.getDependencies());
-                this.removeableDependencies.removeAll(applicationDependencies);
 
             }
         }
 
-        // match existing dependency info (if given)
-        // for now we simply keep all explicit deps, but ignore their transient children
-        Set<String> keep = new HashSet<>();
         if (dependencyTree.isPresent()) {
 
-            for (String toBeRemoved : removeableDependencies) {
-                MavenArtifactDescriptor source = MavenArtifactDescriptor.fromMavenGav(toBeRemoved);
-                for (MavenArtifactDescriptor target : dependencyTree.get().getDirectDeps()) {
+            Set<MavenArtifactDescriptor> applicationDependencies = new HashSet<>();
+            Set<MavenArtifactDescriptor> keep = new HashSet<>(dependencyTree.get().getDirectDeps());
+            keep.removeAll(fractionDependencies);
 
-                    if (source.groupId().equals(target.groupId()) &&
-                            source.artifactId().equals(target.artifactId())
-                            ) {
-                        keep.add(toBeRemoved);
-                    }
-                }
+
+            for (MavenArtifactDescriptor dep : keep) {
+                // the dep itself
+                applicationDependencies.add(dep);
+
+                // it's transient dependencies
+                applicationDependencies.addAll(dependencyTree.get().getTransientDeps(dep));
             }
 
-            removeableDependencies.removeAll(keep);
-
+            this.removeableDependencies.removeAll(applicationDependencies);
         }
-
 
         this.manifests.sort(new ManifestComparator());
     }

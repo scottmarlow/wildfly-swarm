@@ -21,17 +21,19 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
 import javax.annotation.PostConstruct;
+import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.inject.Disposes;
 import javax.enterprise.inject.Produces;
 import javax.inject.Singleton;
 
 import org.jboss.vfs.TempFileProvider;
 import org.wildfly.swarm.bootstrap.util.TempFileManager;
+import org.wildfly.swarm.internal.SwarmMessages;
 
 /**
  * @author Bob McWhirter
  */
-@Singleton
+@ApplicationScoped
 public class TempFileProviderProducer {
 
     private static final String TEMP_DIR_NAME = "wildfly-swarm";
@@ -49,12 +51,12 @@ public class TempFileProviderProducer {
             this.tempFileProvider = TempFileProvider.create(TEMP_DIR_NAME, tempFileExecutor, true);
 
         } catch (IOException e) {
-            //TODO This should be properly logged
-            e.printStackTrace();
+            SwarmMessages.MESSAGES.errorSettingUpTempFileProvider(e);
         }
     }
 
     @Produces
+    @Singleton
     TempFileProvider tempFileProvider() {
         return this.tempFileProvider;
     }
@@ -65,7 +67,7 @@ public class TempFileProviderProducer {
             try {
                 this.tempFileProvider.close();
             } catch (IOException e) {
-                e.printStackTrace();
+                SwarmMessages.MESSAGES.errorCleaningUpTempFileProvider(e);
             }
         }
     }

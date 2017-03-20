@@ -15,7 +15,6 @@
  */
 package org.wildfly.swarm.container.runtime.xmlconfig;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.ArrayList;
@@ -43,6 +42,7 @@ import org.jboss.staxmapper.XMLMapper;
 
 /**
  * @author Heiko Braun
+ * @author Ken Finnigan
  * @since 27/11/15
  */
 @Vetoed
@@ -62,7 +62,7 @@ public class StandaloneXMLParser {
 
             @Override
             public Set<ProfileParsingCompletionHandler> getProfileParsingCompletionHandlers() {
-                return Collections.EMPTY_SET;
+                return Collections.emptySet();
             }
 
             @Override
@@ -72,11 +72,10 @@ public class StandaloneXMLParser {
         }, ParsingOption.IGNORE_SUBSYSTEM_FAILURES);
 
         xmlMapper = XMLMapper.Factory.create();
-        xmlMapper.registerRootElement(new QName(Namespace.CURRENT.getUriString(), SERVER), parserDelegate);
 
-        QName serverElementName = new QName("urn:jboss:domain:4.0", SERVER);
-        this.recognizedNames.add(serverElementName);
-        xmlMapper.registerRootElement(serverElementName, parserDelegate);
+        addDelegate(new QName(Namespace.CURRENT.getUriString(), SERVER), parserDelegate);
+        addDelegate(new QName("urn:jboss:domain:4.1", SERVER), parserDelegate);
+        addDelegate(new QName("urn:jboss:domain:4.0", SERVER), parserDelegate);
     }
 
     /**
@@ -93,27 +92,12 @@ public class StandaloneXMLParser {
     }
 
     public List<ModelNode> parse(URL xml) throws Exception {
-
         final List<ModelNode> operationList = new ArrayList<>();
 
-        InputStream input = null;
-        try {
-            input = xml.openStream();
-
+        try (InputStream input = xml.openStream()) {
             final XMLStreamReader reader = XMLInputFactory.newInstance().createXMLStreamReader(input);
             WrappedXMLStreamReader wrappedReader = new WrappedXMLStreamReader(reader, this.recognizedNames, xmlMapper);
             xmlMapper.parseDocument(operationList, wrappedReader);
-        } catch (XMLStreamException t) {
-            System.err.println("------");
-            t.printStackTrace();
-        } finally {
-            try {
-                if (input != null) {
-                    input.close();
-                }
-            } catch (IOException e) {
-                // ignore
-            }
         }
 
         return operationList;

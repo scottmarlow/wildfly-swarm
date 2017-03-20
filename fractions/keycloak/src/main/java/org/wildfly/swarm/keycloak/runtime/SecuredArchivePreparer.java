@@ -1,3 +1,18 @@
+/**
+ * Copyright 2015-2017 Red Hat, Inc, and individual contributors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.wildfly.swarm.keycloak.runtime;
 
 import java.io.BufferedReader;
@@ -7,7 +22,7 @@ import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
-import javax.inject.Singleton;
+import javax.enterprise.context.ApplicationScoped;
 
 import org.jboss.logging.Logger;
 import org.jboss.shrinkwrap.api.Archive;
@@ -21,13 +36,13 @@ import org.wildfly.swarm.spi.api.ArchivePreparer;
 import org.wildfly.swarm.spi.api.JARArchive;
 import org.wildfly.swarm.spi.api.annotations.Configurable;
 
-@Singleton
+@ApplicationScoped
 public class SecuredArchivePreparer implements ArchivePreparer {
 
     private static final Logger LOG = Logger.getLogger(SecuredArchivePreparer.class);
 
     @Override
-    public void prepareArchive(Archive<?> archive) {
+    public void prepareArchive(Archive<?> archive) throws IOException {
         InputStream keycloakJson = null;
         if (keycloakJsonPath != null) {
             keycloakJson = getKeycloakJson(keycloakJsonPath);
@@ -41,6 +56,7 @@ public class SecuredArchivePreparer implements ArchivePreparer {
         } else {
             // not adding it.
         }
+
     }
 
     private InputStream getKeycloakJson(String path) {
@@ -76,14 +92,13 @@ public class SecuredArchivePreparer implements ArchivePreparer {
                     }
                 } catch (IOException e) {
                     // ignore
-                    // e.printStackTrace();
                 }
             }
         }
         return keycloakJson;
     }
 
-    private Asset createAsset(InputStream in) {
+    private Asset createAsset(InputStream in) throws IOException {
         StringBuilder str = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(in))) {
 
@@ -92,14 +107,11 @@ public class SecuredArchivePreparer implements ArchivePreparer {
             while ((line = reader.readLine()) != null) {
                 str.append(line).append("\n");
             }
-
-        } catch (IOException e) {
-            e.printStackTrace();
         }
         return new ByteArrayAsset(str.toString().getBytes());
     }
 
     @Configurable("swarm.keycloak.json.path")
-    private String keycloakJsonPath;
+    String keycloakJsonPath;
 
 }

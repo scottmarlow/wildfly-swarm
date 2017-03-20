@@ -25,16 +25,12 @@ import org.wildfly.swarm.spi.api.annotations.WildFlyExtension;
 /**
  * @author Bob McWhirter
  */
-@WildFlyExtension(module="org.wildfly.extension.io")
+@WildFlyExtension(module = "org.wildfly.extension.io")
 @MarshalDMR
 public class IOFraction extends IO<IOFraction> implements Fraction<IOFraction> {
 
     public IOFraction applyDefaults() {
-        return worker(
-                "default", w -> {
-                    w.ioThreads(100);
-                    w.taskMaxThreads(20);
-                })
+        return worker(new Worker("default"))
                 .bufferPool(new BufferPool("default"));
     }
 }

@@ -20,15 +20,15 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-import javax.enterprise.util.AnnotationLiteral;
 import javax.enterprise.util.Nonbinding;
 import javax.inject.Qualifier;
 
-/** A group of configuration properties.
+/**
+ * A group of configuration properties.
  *
  * <p>The root class of any configuration group <b>must</b> contain this annotation.
  * Any inner classes must be static, but are not required to use this annotation,
- * but they man.</p>
+ * but they may.</p>
  *
  * <p>When calculating configuration item names, the presence of this annotation
  * will override the naming heuristics usually used.</p>
@@ -39,24 +39,7 @@ import javax.inject.Qualifier;
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.FIELD, ElementType.TYPE})
 public @interface Configurable {
-    @Nonbinding String value() default  "";
+    @Nonbinding String value() default "";
+
     @Nonbinding String simpleName() default "";
-
-    final class Literal extends AnnotationLiteral<Configurable> implements Configurable {
-
-        public static final Literal INSTANCE = new Literal();
-
-        private static final long serialVersionUID = 1L;
-
-        @Nonbinding
-        @Override
-        public String value() {
-            return "";
-        }
-
-        @Nonbinding
-        public String simpleName() {
-            return "";
-        }
-    }
 }

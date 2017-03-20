@@ -20,21 +20,21 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.inject.Instance;
 import javax.inject.Inject;
-import javax.inject.Singleton;
 
 import org.jboss.dmr.ModelNode;
 import org.wildfly.swarm.container.runtime.xmlconfig.StandaloneXMLParser;
 import org.wildfly.swarm.container.runtime.xmlconfig.XMLConfig;
-import org.wildfly.swarm.internal.SwarmMessages;
+import org.wildfly.swarm.internal.SwarmConfigMessages;
 
 /**
  * Marshals a collection of XML configurations (standalone.xml) to DMR.
  *
  * @author Bob McWhirter
  */
-@Singleton
+@ApplicationScoped
 public class XMLMarshaller implements ConfigurationMarshaller {
 
     @Inject
@@ -63,7 +63,7 @@ public class XMLMarshaller implements ConfigurationMarshaller {
         seen.add(url);
         try {
             List<ModelNode> subList = this.parser.parse(url);
-            SwarmMessages.MESSAGES.marshalXml(url.toExternalForm(), subList.toString());
+            SwarmConfigMessages.MESSAGES.marshalXml(url.toExternalForm(), subList.toString());
             list.addAll(subList);
         } catch (Exception e) {
             throw new RuntimeException(e);

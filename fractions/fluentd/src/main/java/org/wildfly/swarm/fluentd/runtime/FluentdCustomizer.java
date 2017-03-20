@@ -18,6 +18,7 @@ package org.wildfly.swarm.fluentd.runtime;
 import java.util.Optional;
 import java.util.Properties;
 
+import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.inject.Any;
 import javax.inject.Inject;
 
@@ -34,6 +35,7 @@ import org.wildfly.swarm.spi.runtime.annotations.Post;
  * @author Heiko Braun
  */
 @Post
+@ApplicationScoped
 public class FluentdCustomizer implements Customizer {
 
     @Inject
@@ -54,33 +56,29 @@ public class FluentdCustomizer implements Customizer {
 
     @Override
     public void customize() {
-        try {
-            String hostname = this.hostname.orElse(this.fluentdFraction.hostname());
-            int port = this.port.orElse(this.fluentdFraction.port());
+        String hostname = this.hostname.orElse(this.fluentdFraction.hostname());
+        int port = this.port.orElse(this.fluentdFraction.port());
 
-            if (hostname != null) {
-                Properties handlerProps = new Properties();
+        if (hostname != null) {
+            Properties handlerProps = new Properties();
 
-                handlerProps.put("hostname", hostname);
-                handlerProps.put("port", "" + port);
-                handlerProps.put("tag", this.fluentdFraction.getTag());
+            handlerProps.put("hostname", hostname);
+            handlerProps.put("port", "" + port);
+            handlerProps.put("tag", this.fluentdFraction.getTag());
 
-                final CustomHandler<?> fluentd = new CustomHandler<>("fluentd-handler")
-                        .module("org.wildfly.swarm.fluentd:runtime")
-                        .attributeClass(FluentdHandler.class.getName())
-                        .properties(handlerProps);
+            final CustomHandler<?> fluentd = new CustomHandler<>("fluentd-handler")
+                    .module("org.wildfly.swarm.fluentd:runtime")
+                    .attributeClass(FluentdHandler.class.getName())
+                    .properties(handlerProps);
 
-                final Level level = this.fluentdFraction.level();
+            final Level level = this.fluentdFraction.level();
 
-                this.loggingFraction
-                        //.consoleHandler(level, LoggingFraction.COLOR_PATTERN)
-                        .customHandler(fluentd)
-                        .rootLogger(level, LoggingFraction.CONSOLE, fluentd.getKey());
-            } else {
-                throw new IllegalArgumentException("Not enabling fluentd, no host set");
-            }
-        } catch (Throwable t) {
-            t.printStackTrace();
+            this.loggingFraction
+                    //.consoleHandler(level, LoggingFraction.COLOR_PATTERN)
+                    .customHandler(fluentd)
+                    .rootLogger(level, LoggingFraction.CONSOLE, fluentd.getKey());
+        } else {
+            throw new IllegalArgumentException("Not enabling fluentd, no host set");
         }
     }
 }

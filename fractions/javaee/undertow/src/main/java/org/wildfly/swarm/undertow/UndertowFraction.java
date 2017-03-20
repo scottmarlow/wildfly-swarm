@@ -16,6 +16,7 @@
 package org.wildfly.swarm.undertow;
 
 import org.wildfly.swarm.config.Undertow;
+import org.wildfly.swarm.config.runtime.AttributeDocumentation;
 import org.wildfly.swarm.config.undertow.BufferCache;
 import org.wildfly.swarm.config.undertow.HandlerConfiguration;
 import org.wildfly.swarm.config.undertow.Server;
@@ -26,9 +27,11 @@ import org.wildfly.swarm.config.undertow.servlet_container.WebsocketsSetting;
 import org.wildfly.swarm.spi.api.Defaultable;
 import org.wildfly.swarm.spi.api.Fraction;
 import org.wildfly.swarm.spi.api.annotations.Configurable;
+import org.wildfly.swarm.spi.api.annotations.ConfigurableAlias;
 import org.wildfly.swarm.spi.api.annotations.MarshalDMR;
 import org.wildfly.swarm.spi.api.annotations.WildFlyExtension;
 
+import static org.wildfly.swarm.spi.api.Defaultable.bool;
 import static org.wildfly.swarm.spi.api.Defaultable.ifAnyExplicitlySet;
 import static org.wildfly.swarm.spi.api.Defaultable.integer;
 import static org.wildfly.swarm.undertow.UndertowProperties.DEFAULT_AJP_PORT;
@@ -182,6 +185,11 @@ public class UndertowFraction extends Undertow<UndertowFraction> implements Frac
         return this;
     }
 
+    public UndertowFraction onlyHTTPS() {
+        this.onlyHTTPS.set(true);
+        return this;
+    }
+
     public String keystorePassword() {
         return this.keystorePassword;
     }
@@ -198,11 +206,15 @@ public class UndertowFraction extends Undertow<UndertowFraction> implements Frac
         return this.alias;
     }
 
+    public boolean isOnlyHTTPS() {
+        return this.onlyHTTPS.get();
+    }
+
     public boolean isEnableAJP() {
         return this.enableAJP.get();
     }
 
-    private UndertowFraction removeHttpListenersFromDefaultServer() {
+    public UndertowFraction removeHttpListenersFromDefaultServer() {
         this.subresources().server("default-server")
                 .subresources().httpListeners().clear();
         return this;
@@ -236,42 +248,61 @@ public class UndertowFraction extends Undertow<UndertowFraction> implements Frac
     }
 
     @Configurable("swarm.http.port")
+    @AttributeDocumentation("Set the port for the default HTTP listener")
     private Defaultable<Integer> httpPort = integer(DEFAULT_HTTP_PORT);
 
     @Configurable("swarm.https.port")
+    @AttributeDocumentation("Set the port for the default HTTPS listener")
     private Defaultable<Integer> httpsPort = integer(DEFAULT_HTTPS_PORT);
 
     @Configurable("swarm.ajp.port")
+    @AttributeDocumentation("Set the port for the default AJP listener")
     private Defaultable<Integer> ajpPort = integer(DEFAULT_AJP_PORT);
 
     /**
      * Path to the keystore.
      */
-    @Configurable("swarm.http.keystore.path")
+    @Configurable("swarm.https.keystore.path")
+    @ConfigurableAlias("swarm.http.keystore.path")
+    @AttributeDocumentation("Path to the server keystore")
     private String keystorePath;
 
     /**
      * Password for the keystore.
      */
-    @Configurable("swarm.http.keystore.password")
+    @Configurable("swarm.https.keystore.password")
+    @ConfigurableAlias("swarm.http.keystore.password")
+    @AttributeDocumentation("Password to the server keystore")
     private String keystorePassword;
 
     /**
      * Password for the key.
      */
-    @Configurable("swarm.http.key.password")
+    @Configurable("swarm.https.key.password")
+    @ConfigurableAlias("swarm.http.key.password")
+    @AttributeDocumentation("Password to the server certificate")
     private String keyPassword;
 
     /**
-     * Server certificate alias.
+     * Alias of Server certificate key entry in the keystore.
      */
-    @Configurable("swarm.http.certificate.alias")
+    @Configurable("swarm.https.key.alias")
+    @ConfigurableAlias("swarm.http.certificate.alias")
+    @AttributeDocumentation("Alias to the server certificate key entry in the keystore")
     private String alias;
+
+    /**
+     * Whether or not disable HTTP interface
+     */
+    @Configurable("swarm.https.only")
+    @AttributeDocumentation("Only enable the HTTPS  Listener")
+    private Defaultable<Boolean> onlyHTTPS = bool(false);
 
     /**
      * Whether or not enabling AJP
      */
     @Configurable("swarm.ajp.enable")
+    @AttributeDocumentation("Determine if AJP should be enabled")
     private Defaultable<Boolean> enableAJP = ifAnyExplicitlySet(this.ajpPort);
 
 }

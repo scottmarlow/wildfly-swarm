@@ -5,7 +5,7 @@
   <parent>
     <groupId>org.wildfly.swarm</groupId>
     <artifactId>wildfly-swarm</artifactId>
-    <version>2017.2.0-SNAPSHOT</version>
+    <version>2017.4.0-SNAPSHOT</version>
     <relativePath>../../</relativePath>
   </parent>
 
@@ -35,6 +35,10 @@
     </dependency>
     <dependency>
       <groupId>org.wildfly.swarm</groupId>
+      <artifactId>logging</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.wildfly.swarm</groupId>
       <artifactId>spi</artifactId>
       <scope>provided</scope>
     </dependency>
@@ -42,6 +46,12 @@
       <groupId>org.jboss</groupId>
       <artifactId>staxmapper</artifactId>
       <scope>provided</scope>
+    </dependency>
+
+    <!-- Meta SPI -->
+    <dependency>
+      <groupId>org.wildfly.swarm</groupId>
+      <artifactId>meta-spi</artifactId>
     </dependency>
 
     <dependency>

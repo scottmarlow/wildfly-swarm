@@ -18,10 +18,10 @@ package org.wildfly.swarm.container.runtime.marshal;
 import java.util.LinkedList;
 import java.util.List;
 
+import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.inject.Any;
 import javax.enterprise.inject.Instance;
 import javax.inject.Inject;
-import javax.inject.Singleton;
 
 import org.jboss.as.controller.PathAddress;
 import org.jboss.dmr.ModelNode;
@@ -33,6 +33,7 @@ import org.wildfly.swarm.spi.api.SocketBindingGroup;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.ADD;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.DEFAULT_INTERFACE;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.HOST;
+import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.INTERFACE;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.MULTICAST_ADDRESS;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.MULTICAST_PORT;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.OP;
@@ -43,7 +44,7 @@ import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.POR
 /**
  * @author Bob McWhirter
  */
-@Singleton
+@ApplicationScoped
 public class SocketBindingGroupMarshaller implements ConfigurationMarshaller {
 
     @Inject
@@ -98,6 +99,9 @@ public class SocketBindingGroupMarshaller implements ConfigurationMarshaller {
         node.get(OP_ADDR).set(address.append("socket-binding", binding.name()).toModelNode());
         node.get(OP).set(ADD);
         node.get(PORT).set(new ValueExpression(binding.portExpression()));
+        if (binding.iface() != null) {
+            node.get(INTERFACE).set(binding.iface());
+        }
         if (binding.multicastAddress() != null) {
             node.get(MULTICAST_ADDRESS).set(binding.multicastAddress());
         }

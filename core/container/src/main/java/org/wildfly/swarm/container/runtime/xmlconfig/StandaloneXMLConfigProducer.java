@@ -17,20 +17,20 @@ package org.wildfly.swarm.container.runtime.xmlconfig;
 
 import java.net.URL;
 
+import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.inject.Produces;
-import javax.inject.Singleton;
 
 import org.jboss.modules.Module;
 import org.jboss.modules.ModuleIdentifier;
 import org.jboss.modules.ModuleLoadException;
-import org.wildfly.swarm.internal.SwarmMessages;
+import org.wildfly.swarm.internal.SwarmConfigMessages;
 
 /**
  * Produces auto-discovered XML configuration (standalone.xml) URLs.
  *
  * @author Bob McWhirter
  */
-@Singleton
+@ApplicationScoped
 public class StandaloneXMLConfigProducer {
 
     private static final String STANDALONE_XML_FILE = "standalone.xml";
@@ -43,11 +43,11 @@ public class StandaloneXMLConfigProducer {
             ClassLoader cl = app.getClassLoader();
             URL result = cl.getResource(STANDALONE_XML_FILE);
             if (result != null) {
-                SwarmMessages.MESSAGES.loadingStandaloneXml("'swarm.application' module", result.toExternalForm());
+                SwarmConfigMessages.MESSAGES.loadingStandaloneXml("'swarm.application' module", result.toExternalForm());
             }
             return result;
         } catch (ModuleLoadException e) {
-            e.printStackTrace();
+            SwarmConfigMessages.MESSAGES.errorLoadingModule(e);
         }
         return null;
     }
@@ -58,7 +58,7 @@ public class StandaloneXMLConfigProducer {
         ClassLoader cl = ClassLoader.getSystemClassLoader();
         URL result = cl.getResource(STANDALONE_XML_FILE);
         if (result != null) {
-            SwarmMessages.MESSAGES.loadingStandaloneXml("system classloader", result.toExternalForm());
+            SwarmConfigMessages.MESSAGES.loadingStandaloneXml("system classloader", result.toExternalForm());
         }
         return result;
     }

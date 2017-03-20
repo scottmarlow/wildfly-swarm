@@ -17,17 +17,23 @@ package org.wildfly.swarm.bootstrap.modules;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
+import org.jboss.modules.AbstractResourceLoader;
 import org.jboss.modules.ResourceLoader;
 import org.jboss.modules.ResourceLoaders;
+import org.wildfly.swarm.bootstrap.performance.Performance;
 import org.wildfly.swarm.bootstrap.util.TempFileManager;
 
 /**
@@ -35,56 +41,127 @@ import org.wildfly.swarm.bootstrap.util.TempFileManager;
  */
 public class NestedJarResourceLoader {
 
+    private static final String JAR_SUFFIX = ".jar!";
+
     private NestedJarResourceLoader() {
     }
 
-    public static ResourceLoader loaderFor(URL base, String rootPath, String loaderPath, String loaderName) throws IOException {
-
-        String urlString = base.toExternalForm();
-        if (urlString.startsWith("jar:file:")) {
-            int endLoc = urlString.indexOf(".jar!");
-            if (endLoc > 0) {
-                String jarPath = urlString.substring(9, endLoc + 4);
-
-                File exp = exploded.get(jarPath);
-
-                if (exp == null) {
-                    exp = TempFileManager.INSTANCE.newTempDirectory("module-jar", ".jar_d");
-
-                    JarFile jarFile = new JarFile(jarPath);
-
-                    Enumeration<JarEntry> entries = jarFile.entries();
-
-                    while (entries.hasMoreElements()) {
-                        JarEntry each = entries.nextElement();
-
-                        if (!each.isDirectory()) {
-                            File out = new File(exp, each.getName());
-                            out.getParentFile().mkdirs();
-                            Files.copy(jarFile.getInputStream(each), out.toPath(), StandardCopyOption.REPLACE_EXISTING);
+    public static synchronized boolean requiresExplosion(URL base) throws IOException {
+        try (AutoCloseable locateHandle = Performance.accumulate("Is explosion needed?")) {
+            String urlString = base.toExternalForm();
+            if (urlString.startsWith("jar:file:")) {
+                int endLoc = urlString.indexOf(JAR_SUFFIX);
+                if (endLoc > 0) {
+                    String jarPath = urlString.substring(9, endLoc + 4);
+                    File exp = exploded.get(jarPath);
+                    if (exp != null) {
+                        return true;
+                    }
+                    if (explosionNotRequired.contains(jarPath)) {
+                        return false;
+                    }
+                    try (JarFile jarFile = new JarFile(jarPath)) {
+                        Enumeration<JarEntry> entries = jarFile.entries();
+                        while (entries.hasMoreElements()) {
+                            JarEntry each = entries.nextElement();
+                            if (!each.isDirectory()) {
+                                if (each.getName().startsWith("modules") && !each.getName().endsWith("/module.xml")) {
+                                    return true;
+                                }
+                            }
                         }
                     }
+                    explosionNotRequired.add(jarPath);
                 }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
 
-                String relativeRoot = urlString.substring(endLoc + 5);
-                File resourceRoot = new File(new File(exp, relativeRoot), loaderPath);
-                if (!resourceRoot.isDirectory() && (resourceRoot.getName().endsWith(".jar") || resourceRoot.getName().endsWith(".war"))) {
-                    JarFile jar = new JarFile(resourceRoot);
+        return false;
+    }
+
+    public static synchronized Path explodedJar(URL base) throws IOException {
+        if (!requiresExplosion(base)) {
+            return null;
+        }
+        try (AutoCloseable locateHandle = Performance.accumulate("Exploded JAR locating")) {
+            String urlString = base.toExternalForm();
+            if (urlString.startsWith("jar:file:")) {
+                int endLoc = urlString.indexOf(JAR_SUFFIX);
+                if (endLoc > 0) {
+                    String jarPath = urlString.substring(9, endLoc + 4);
+                    File exp = exploded.get(jarPath);
+                    if (exp == null) {
+                        try (AutoCloseable explodingHandle = Performance.accumulate("Exploding JAR")) {
+                            exp = TempFileManager.INSTANCE.newTempDirectory("module-jar", ".jar_d");
+                            try (JarFile jarFile = new JarFile(jarPath)) {
+                                Enumeration<JarEntry> entries = jarFile.entries();
+                                while (entries.hasMoreElements()) {
+                                    JarEntry each = entries.nextElement();
+                                    if (!each.isDirectory()) {
+                                        File out = new File(exp, each.getName());
+                                        out.getParentFile().mkdirs();
+                                        InputStream in = jarFile.getInputStream(each);
+                                        Files.copy(in, out.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                                        in.close();
+                                    }
+                                }
+                            }
+                            exploded.put(jarPath, exp);
+                        }
+                    }
+
+                    String remainder = urlString.substring(endLoc + JAR_SUFFIX.length());
+                    if (remainder.startsWith("/") || remainder.startsWith("\\")) {
+                        remainder = remainder.substring(1);
+                    }
+
+                    return exp.toPath().resolve(remainder);
+                }
+            }
+
+            return null;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static ResourceLoader loaderFor(URL base, String rootPath, String loaderPath, String loaderName) throws IOException {
+        Path exp = explodedJar(base);
+
+        String urlString = base.toExternalForm();
+        if (exp != null) {
+            int endLoc = urlString.indexOf(JAR_SUFFIX);
+            if (endLoc > 0) {
+                Path resourceRoot = exp.resolve(loaderPath);
+                if (!Files.isDirectory(resourceRoot) && (resourceRoot.getFileName().toString().endsWith(".jar") || resourceRoot.getFileName().toString().endsWith(".war"))) {
+                    JarFile jar = new JarFile(resourceRoot.toFile());
                     return ResourceLoaders.createJarResourceLoader(loaderName, jar);
                 } else {
-                    return ResourceLoaders.createFileResourceLoader(loaderName, resourceRoot);
+                    return ResourceLoaders.createFileResourceLoader(loaderName, resourceRoot.toFile());
                 }
             }
         } else if (urlString.startsWith("file:")) {
+            if (loaderName.endsWith(".jar") || loaderName.endsWith(".war")) {
+                return ResourceLoaders.createJarResourceLoader(
+                        loaderName,
+                        new JarFile(new File(urlString.substring(5), loaderPath)));
+            }
             return ResourceLoaders.createFileResourceLoader(
                     loaderPath,
-                    new File(urlString.substring(5, urlString.length()))
+                    new File(urlString.substring(5))
             );
+        } else {
+            return new AbstractResourceLoader() {
+            };
         }
 
-        throw new IllegalArgumentException("Illegal module loader base: " + base);
+        throw new IllegalArgumentException("Illegal module loader base: " + base + " // " + loaderPath + " // " + loaderName);
     }
 
     private static Map<String, File> exploded = new HashMap<>();
+
+    private static Set<String> explosionNotRequired = new HashSet<>();
 
 }

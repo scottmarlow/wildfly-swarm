@@ -33,17 +33,20 @@ import org.jboss.shrinkwrap.resolver.api.maven.repository.MavenChecksumPolicy;
 import org.jboss.shrinkwrap.resolver.api.maven.repository.MavenRemoteRepositories;
 import org.jboss.shrinkwrap.resolver.api.maven.repository.MavenUpdatePolicy;
 import org.wildfly.swarm.arquillian.resolver.ShrinkwrapArtifactResolvingHelper;
-import org.wildfly.swarm.fractionlist.FractionList;
+import org.wildfly.swarm.fractions.FractionDescriptor;
+import org.wildfly.swarm.fractions.FractionList;
+import org.wildfly.swarm.fractions.PropertiesUtil;
 import org.wildfly.swarm.tools.ArtifactResolvingHelper;
+import org.wildfly.swarm.tools.ArtifactSpec;
 import org.wildfly.swarm.tools.BuildTool;
 import org.wildfly.swarm.tools.DeclaredDependencies;
-import org.wildfly.swarm.tools.FractionDescriptor;
-import org.wildfly.swarm.tools.PropertiesUtil;
 
 import static java.util.Arrays.asList;
 
 public class Main {
 
+    protected Main() {
+    }
 
     private static final OptionParser OPT_PARSER = new OptionParser();
 
@@ -77,6 +80,13 @@ public class Main {
                     .withValuesSeparatedBy(',')
                     .describedAs("undertow,jaxrs,...");
 
+    private static final OptionSpec<String> DEPENDENCIES_OPT =
+            OPT_PARSER.acceptsAll(asList("d", "dependencies"), "Maven coordinates (groupId:artifactId:version) of dependencies to include")
+                    .withRequiredArg()
+                    .ofType(String.class)
+                    .withValuesSeparatedBy(",")
+                    .describedAs("gav1,gav2,...");
+
     private static final OptionSpec<String> REPOS_OPT =
             OPT_PARSER.accepts("repos", "additional maven repos to resolve against")
                     .withRequiredArg()
@@ -93,9 +103,9 @@ public class Main {
 
     private static final OptionSpec<String> MAIN_OPT =
             OPT_PARSER.accepts("main", "The name of the custom main class")
-            .withRequiredArg()
-            .ofType(String.class)
-            .describedAs("main-class");
+                    .withRequiredArg()
+                    .ofType(String.class)
+                    .describedAs("main-class");
 
     private static final OptionSpec<String> MODULES_OPT =
             OPT_PARSER.accepts("modules", "A list of JBoss Modules module dirs to include")
@@ -155,7 +165,8 @@ public class Main {
                 System.err.println(String.format("Usage: %s <options> artifact-path\n", executableName()));
                 try {
                     OPT_PARSER.printHelpOn(System.err);
-                } catch (IOException ignored) {}
+                } catch (IOException ignored) {
+                }
             }
 
             System.exit(e.status);
@@ -180,7 +191,7 @@ public class Main {
             exit(e.getMessage(), true);
         }
 
-        if  (foundOptions.has(HELP_OPT)) {
+        if (foundOptions.has(HELP_OPT)) {
             exit(null, 0, true);
         }
 
@@ -213,6 +224,11 @@ public class Main {
                     properties.put(parts[0], parts[1]);
                 });
 
+        final DeclaredDependencies dependencies = new DeclaredDependencies();
+        foundOptions.valuesOf(DEPENDENCIES_OPT).stream()
+                .map(DeclaredDependencies::createSpec)
+                .forEach(dependencies::add);
+
         final String[] parts = source.getName().split("\\.(?=[^\\.]+$)");
         final String baseName = parts[0];
         final String type = parts[1] == null ? "jar" : parts[1];
@@ -221,11 +237,10 @@ public class Main {
         final String suffix = foundOptions.has(HOLLOW_OPT) ? "-hollow-swarm" : "-swarm";
         final BuildTool tool = new BuildTool(getResolvingHelper(foundOptions.valuesOf(REPOS_OPT)))
                 .projectArtifact("", baseName, "", type, source)
-                .declaredDependencies(new DeclaredDependencies())
-                .fractionList(FractionList.get())
+                .declaredDependencies(dependencies)
                 .fractionDetectionMode(foundOptions.has(DISABLE_AUTO_DETECT_OPT) ?
-                                             BuildTool.FractionDetectionMode.never :
-                                             BuildTool.FractionDetectionMode.force)
+                                               BuildTool.FractionDetectionMode.never :
+                                               BuildTool.FractionDetectionMode.force)
                 .bundleDependencies(!foundOptions.has(DISABLE_BUNDLE_DEPS_OPT))
                 .executable(foundOptions.has(EXECUTABLE_OPT))
                 .properties(properties)
@@ -243,7 +258,7 @@ public class Main {
 
         addSwarmFractions(tool, foundOptions.valuesOf(FRACTIONS_OPT));
 
-        System.err.println(String.format("Building %s/%s-%s.jar", outDir, jarName, suffix));
+        System.err.println(String.format("Building %s/%s%s.jar", outDir, jarName, suffix));
         return tool.build(jarName, Paths.get(outDir));
     }
 
@@ -258,6 +273,7 @@ public class Main {
     private static void exit(String message, int code) {
         exit(message, code, false);
     }
+
     private static void exit(String message, int code, boolean printHelp) {
         throw new ExitException(code, printHelp, message);
     }
@@ -266,7 +282,7 @@ public class Main {
         final ConfigurableMavenResolverSystem resolver = Maven.configureResolver()
                 .withMavenCentralRepo(true)
                 .withRemoteRepo(MavenRemoteRepositories.createRemoteRepository("jboss-public-repository-group",
-                                                                               "http://repository.jboss.org/nexus/content/groups/public/",
+                                                                               "https://repository.jboss.org/nexus/content/groups/public/",
                                                                                "default")
                                         .setChecksumPolicy(MavenChecksumPolicy.CHECKSUM_POLICY_IGNORE)
                                         .setUpdatePolicy(MavenUpdatePolicy.UPDATE_POLICY_NEVER));
@@ -306,11 +322,12 @@ public class Main {
                     }
                 })
                 .filter(f -> f != null)
-                .forEach(f -> tool.fraction(f.toArtifactSpec()));
+                .forEach(f -> tool.fraction(ArtifactSpec.fromFractionDescriptor(f)));
     }
 
     static class ExitException extends RuntimeException {
         public int status;
+
         public boolean printHelp;
 
         ExitException(final int status, final boolean printHelp, final String message) {

@@ -15,22 +15,25 @@
  */
 package org.wildfly.swarm.datasources.runtime.drivers;
 
-import javax.inject.Singleton;
+import javax.enterprise.context.ApplicationScoped;
 
 import org.jboss.modules.ModuleIdentifier;
 import org.wildfly.swarm.config.datasources.DataSource;
 import org.wildfly.swarm.config.datasources.JDBCDriver;
 import org.wildfly.swarm.datasources.runtime.DriverInfo;
 
-/** Auto-detection for DB2.
+/**
+ * Auto-detection for DB2.
  *
  * @author Bob McWhirter
  */
-@Singleton
+@ApplicationScoped
 public class DB2DriverInfo extends DriverInfo {
 
     public static final String DEFAULT_CONNECTION_URL = "jdbc:db2:ibmdb2db";
+
     public static final String DEFAULT_USER_NAME = "admin";
+
     public static final String DEFAULT_PASSWORD = "admin";
 
     public DB2DriverInfo() {
@@ -44,14 +47,14 @@ public class DB2DriverInfo extends DriverInfo {
 
     @Override
     protected void configureDriver(JDBCDriver driver) {
-        driver.xaDatasourceClass("com.ibm.db2.jdbc.DB2XADataSource");
+        driver.driverXaDatasourceClassName("com.ibm.db2.jdbc.DB2XADataSource");
     }
 
     @Override
     protected void configureDefaultDS(DataSource datasource) {
-        datasource.connectionUrl( DEFAULT_CONNECTION_URL );
-        datasource.userName( DEFAULT_USER_NAME );
-        datasource.password( DEFAULT_PASSWORD );
+        datasource.connectionUrl(DEFAULT_CONNECTION_URL);
+        datasource.userName(DEFAULT_USER_NAME);
+        datasource.password(DEFAULT_PASSWORD);
         datasource.minPoolSize(0);
         datasource.maxPoolSize(50);
     }

@@ -25,7 +25,6 @@ import org.wildfly.swarm.spi.api.ArtifactLookup;
 import org.wildfly.swarm.spi.api.Defaultable;
 import org.wildfly.swarm.spi.api.Fraction;
 import org.wildfly.swarm.spi.api.JARArchive;
-import org.wildfly.swarm.spi.api.SwarmProperties;
 import org.wildfly.swarm.spi.api.annotations.Configurable;
 
 import static org.wildfly.swarm.spi.api.Defaultable.string;
@@ -61,21 +60,28 @@ public class SwaggerWebAppFraction implements Fraction<SwaggerWebAppFraction> {
      * @return this
      */
     public SwaggerWebAppFraction addWebContent(String content) {
-        if (content == null) return this;
-        if (content.equals("")) return this;
+        if (content == null) {
+            return this;
+        }
+
+        if (content.equals("")) {
+            return this;
+        }
+
         File maybeFile = new File(content);
+
         if (!maybeFile.exists()) {
             // the content string is a GAV
             try {
                 this.webContent = ArtifactLookup.get().artifact(content);
             } catch (Exception e) {
-                //e.printStackTrace();
+                SwaggerWebAppMessages.MESSAGES.unableToLocateWebContent(content);
             }
         } else if (maybeFile.isDirectory()) {
             try {
                 this.webContent = loadFromDirectory(maybeFile);
             } catch (IOException e) {
-                e.printStackTrace();
+                SwaggerWebAppMessages.MESSAGES.unableToLocateWebContent(maybeFile.toString());
             }
         } else {
             this.webContent = ShrinkWrap.createFromZipFile(JARArchive.class, maybeFile);

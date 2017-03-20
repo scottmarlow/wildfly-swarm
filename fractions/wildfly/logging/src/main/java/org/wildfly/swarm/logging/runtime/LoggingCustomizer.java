@@ -1,8 +1,8 @@
 package org.wildfly.swarm.logging.runtime;
 
+import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.inject.Any;
 import javax.inject.Inject;
-import javax.inject.Singleton;
 
 import org.wildfly.swarm.bootstrap.logging.InitialLoggerManager;
 import org.wildfly.swarm.bootstrap.logging.LevelNode;
@@ -15,7 +15,7 @@ import org.wildfly.swarm.spi.runtime.annotations.Post;
  * @author Bob McWhirter
  */
 @Post
-@Singleton
+@ApplicationScoped
 public class LoggingCustomizer implements Customizer {
 
     @Inject
@@ -25,7 +25,7 @@ public class LoggingCustomizer implements Customizer {
     @Override
     public void customize() {
         LevelNode root = InitialLoggerManager.INSTANCE.getRoot();
-        apply( root );
+        apply(root);
     }
 
     private void apply(LevelNode node) {

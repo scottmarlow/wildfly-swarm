@@ -19,6 +19,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -30,26 +31,17 @@ import org.wildfly.swarm.bootstrap.util.MavenArtifactDescriptor;
  * These maye be unresolved, which means you cannot assume they are available in any local repository.
  *
  * @author Heiko Braun
+ * @author Ken Finnigan
  * @since 24/10/2016
  */
 public class DeclaredDependencies extends DependencyTree<ArtifactSpec> {
 
-    @Deprecated
-    public void addExplicitDependency(ArtifactSpec artifactSpec) {
-        throw new IllegalArgumentException("To be removed");
-    }
-
-    @Deprecated
-    public void addTransientDependency(ArtifactSpec artifactSpec) {
-        throw new IllegalArgumentException("To be removed");
-    }
-
-    public Set<ArtifactSpec> getExplicitDependencies() {
+    public Collection<ArtifactSpec> getExplicitDependencies() {
         return getDirectDeps();
     }
 
     public Set<ArtifactSpec> getTransientDependencies() {
-        if(null==allTransient) {
+        if (null == allTransient) {
             allTransient = new HashSet<>();
             for (ArtifactSpec directDep : getDirectDeps()) {
                 allTransient.addAll(getTransientDependencies(directDep));
@@ -58,17 +50,18 @@ public class DeclaredDependencies extends DependencyTree<ArtifactSpec> {
         return allTransient;
     }
 
-    public Set<ArtifactSpec> getTransientDependencies(ArtifactSpec artifact) {
+    public Collection<ArtifactSpec> getTransientDependencies(ArtifactSpec artifact) {
         return getTransientDeps(artifact);
     }
 
     /**
      * 'Presolved' means a build component (i.e. mojo) pre-computed the transient dependencies
      * and thus we can assume this set is fully and correctly resolved
+     *
      * @return
      */
     public boolean isPresolved() {
-        return getTransientDependencies().size()>0;
+        return getTransientDependencies().size() > 0;
     }
 
     public static ArtifactSpec createSpec(String gav) {
@@ -97,10 +90,10 @@ public class DeclaredDependencies extends DependencyTree<ArtifactSpec> {
     public void writeTo(File file) {
         try {
             Writer w = new FileWriter(file);
-            for(ArtifactSpec key : depTree.keySet()) {
+            for (ArtifactSpec key : depTree.keySet()) {
                 w.write(key.mavenGav());
                 w.write(":\n");
-                for(ArtifactSpec s : depTree.get(key)) {
+                for (ArtifactSpec s : depTree.get(key)) {
                     w.write("  - ");
                     w.write(s.mavenGav());
                     w.write("\n");
@@ -110,6 +103,16 @@ public class DeclaredDependencies extends DependencyTree<ArtifactSpec> {
         } catch (IOException e) {
             throw new RuntimeException("Failed to write dependency tree", e);
         }
+    }
+
+    @Override
+    protected int comparator(ArtifactSpec first, ArtifactSpec second) {
+        if (first.scope.equals("compile") || first.scope.equals("provided")) {
+            return -1;
+        } else if (second.scope.equals("compile") || second.scope.equals("provided")) {
+            return 1;
+        }
+        return 0;
     }
 
     private HashSet<ArtifactSpec> allTransient;

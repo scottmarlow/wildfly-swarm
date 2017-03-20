@@ -28,9 +28,10 @@ import java.util.stream.Collectors;
 import org.jboss.msc.service.ServiceController;
 import org.jboss.msc.service.ServiceTarget;
 import org.wildfly.swarm.topology.AdvertisementHandle;
-import org.wildfly.swarm.topology.deployment.RegistrationAdvertiser;
 import org.wildfly.swarm.topology.Topology;
 import org.wildfly.swarm.topology.TopologyListener;
+import org.wildfly.swarm.topology.TopologyMessages;
+import org.wildfly.swarm.topology.deployment.RegistrationAdvertiser;
 
 /**
  * @author Bob McWhirter
@@ -54,8 +55,8 @@ public class TopologyManager implements Topology {
     @Override
     public AdvertisementHandle advertise(String name) {
         ServiceController<Void> httpAdvert = RegistrationAdvertiser.install(this.serviceTarget, name, "http");
-        ServiceController<Void> httpsAdvert = RegistrationAdvertiser.install( this.serviceTarget, name, "https" );
-        return new AdvertisementHandleImpl( httpAdvert, httpsAdvert );
+        ServiceController<Void> httpsAdvert = RegistrationAdvertiser.install(this.serviceTarget, name, "https");
+        return new AdvertisementHandleImpl(httpAdvert, httpsAdvert);
     }
 
     public synchronized Set<Registration> registrationsForSourceKey(String sourceKey) {
@@ -139,7 +140,7 @@ public class TopologyManager implements Topology {
                 try {
                     e.onChange(this);
                 } catch (Throwable t) {
-                    t.printStackTrace();
+                    TopologyMessages.MESSAGES.errorFiringEvent(e.getClass().getName(), t);
                     removeListener(e);
                 }
             });

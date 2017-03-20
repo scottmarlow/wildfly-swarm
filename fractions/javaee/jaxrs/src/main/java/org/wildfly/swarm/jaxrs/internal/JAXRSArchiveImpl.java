@@ -49,7 +49,7 @@ public class JAXRSArchiveImpl extends WebContainerBase<JAXRSArchive> implements 
      *
      * @param delegate The storage backing.
      */
-    public JAXRSArchiveImpl(Archive<?> delegate) {
+    public JAXRSArchiveImpl(Archive<?> delegate) throws IOException {
         super(JAXRSArchive.class, delegate);
 
         addGeneratedApplication();
@@ -67,8 +67,8 @@ public class JAXRSArchiveImpl extends WebContainerBase<JAXRSArchive> implements 
             return false;
         }
 
-        if ( asset instanceof ArchiveAsset) {
-            return hasApplicationPathAnnotation( ((ArchiveAsset) asset).getArchive() );
+        if (asset instanceof ArchiveAsset) {
+            return hasApplicationPathAnnotation(((ArchiveAsset) asset).getArchive());
         }
 
         if (!path.get().endsWith(".class")) {
@@ -99,19 +99,15 @@ public class JAXRSArchiveImpl extends WebContainerBase<JAXRSArchive> implements 
         return false;
     }
 
-    protected void addGeneratedApplication() {
+    protected void addGeneratedApplication() throws IOException {
         if (!hasApplicationPathAnnotation(getArchive())) {
             String name = "org.wildfly.swarm.generated.WildFlySwarmDefaultJAXRSApplication";
             String path = "WEB-INF/classes/" + name.replace('.', '/') + ".class";
 
             byte[] generatedApp;
-            try {
-                generatedApp = ApplicationFactory2.create(name, "/");
-                add(new ByteArrayAsset(generatedApp), path);
-                addHandlers(new ApplicationHandler(this, path));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            generatedApp = ApplicationFactory2.create(name, "/");
+            add(new ByteArrayAsset(generatedApp), path);
+            addHandlers(new ApplicationHandler(this, path));
         }
     }
 
@@ -159,15 +155,15 @@ public class JAXRSArchiveImpl extends WebContainerBase<JAXRSArchive> implements 
     }
 
     private static boolean isJAXRS(ArchivePath path, Asset asset) {
-        if ( asset == null ) {
+        if (asset == null) {
             return false;
         }
 
-        if ( asset instanceof ArchiveAsset) {
-            return isJAXRS( ((ArchiveAsset) asset).getArchive() );
+        if (asset instanceof ArchiveAsset) {
+            return isJAXRS(((ArchiveAsset) asset).getArchive());
         }
 
-        if ( ! path.get().endsWith( ".class" ) ) {
+        if (!path.get().endsWith(".class")) {
             return false;
         }
         try (InputStream in = asset.openStream()) {

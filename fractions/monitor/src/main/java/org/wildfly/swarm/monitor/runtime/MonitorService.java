@@ -30,6 +30,7 @@ import org.jboss.as.controller.client.ModelControllerClient;
 import org.jboss.as.domain.management.SecurityRealm;
 import org.jboss.as.server.ServerEnvironment;
 import org.jboss.dmr.ModelNode;
+import org.jboss.logging.Logger;
 import org.jboss.msc.inject.Injector;
 import org.jboss.msc.service.Service;
 import org.jboss.msc.service.ServiceName;
@@ -37,6 +38,7 @@ import org.jboss.msc.service.StartContext;
 import org.jboss.msc.service.StartException;
 import org.jboss.msc.service.StopContext;
 import org.jboss.msc.value.InjectedValue;
+import org.wildfly.swarm.SwarmInfo;
 import org.wildfly.swarm.monitor.HealthMetaData;
 
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.ADDRESS;
@@ -52,6 +54,10 @@ import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.SUC
  */
 @Vetoed
 public class MonitorService implements Monitor, Service<MonitorService> {
+
+    private static Logger LOG = Logger.getLogger("org.wildfly.swarm.monitor.health");
+
+    private static final String SELECT = "select";
 
     public static final ServiceName SERVICE_NAME = ServiceName.of("swarm", "monitor");
 
@@ -71,7 +77,7 @@ public class MonitorService implements Monitor, Service<MonitorService> {
         controllerClient = modelControllerValue.getValue().createClient(executorService);
 
         if (!securityRealm.isPresent()) {
-            System.out.println("WARN: You are running the monitoring endpoints without any security realm configuration!");
+            LOG.warn("You are running the monitoring endpoints without any security realm configuration!");
         }
     }
 
@@ -89,23 +95,20 @@ public class MonitorService implements Monitor, Service<MonitorService> {
 
     @Override
     public ModelNode getNodeInfo() {
-        ModelNode payload = new ModelNode();
-
 
         ModelNode op = new ModelNode();
         op.get(ADDRESS).setEmptyList();
         op.get(OP).set("query");
-        op.get("select").add("name");
-        op.get("select").add("server-state");
-        op.get("select").add("suspend-state");
-        op.get("select").add("running-mode");
-        op.get("select").add("uuid");
+        op.get(SELECT).add("name");
+        op.get(SELECT).add("server-state");
+        op.get(SELECT).add("suspend-state");
+        op.get(SELECT).add("running-mode");
+        op.get(SELECT).add("uuid");
 
         try {
             ModelNode response = controllerClient.execute(op);
             ModelNode unwrapped = unwrap(response);
-            // need a way to figure out *which* version we really mean here...
-            unwrapped.get("wfs-version").set("fixme");
+            unwrapped.get("swarm-version").set(SwarmInfo.VERSION);
             return unwrapped;
         } catch (IOException e) {
             return new ModelNode().get(FAILURE_DESCRIPTION).set(e.getMessage());
@@ -122,8 +125,8 @@ public class MonitorService implements Monitor, Service<MonitorService> {
         op.get(ADDRESS).add("core-service", "platform-mbean");
         op.get(ADDRESS).add("type", "memory");
         op.get(OP).set("query");
-        op.get("select").add("heap-memory-usage");
-        op.get("select").add("non-heap-memory-usage");
+        op.get(SELECT).add("heap-memory-usage");
+        op.get(SELECT).add("non-heap-memory-usage");
 
         try {
             ModelNode response = controllerClient.execute(op);
@@ -142,11 +145,11 @@ public class MonitorService implements Monitor, Service<MonitorService> {
         op.get(ADDRESS).add("core-service", "platform-mbean");
         op.get(ADDRESS).add("type", "threading");
         op.get(OP).set("query");
-        op.get("select").add("thread-count");
-        op.get("select").add("peak-thread-count");
-        op.get("select").add("total-started-thread-count");
-        op.get("select").add("current-thread-cpu-time");
-        op.get("select").add("current-thread-user-time");
+        op.get(SELECT).add("thread-count");
+        op.get(SELECT).add("peak-thread-count");
+        op.get(SELECT).add("total-started-thread-count");
+        op.get(SELECT).add("current-thread-cpu-time");
+        op.get(SELECT).add("current-thread-user-time");
 
         try {
             ModelNode response = controllerClient.execute(op);
@@ -158,7 +161,7 @@ public class MonitorService implements Monitor, Service<MonitorService> {
 
     @Override
     public void registerHealth(HealthMetaData metaData) {
-        System.out.println("Adding /health endpoint delegate: " + metaData.getWebContext());
+        LOG.info("Adding /health endpoint delegate: " + metaData.getWebContext());
         this.endpoints.add(metaData);
     }
 
@@ -181,10 +184,11 @@ public class MonitorService implements Monitor, Service<MonitorService> {
     }
 
     private static ModelNode unwrap(ModelNode response) {
-        if (response.get(OUTCOME).asString().equals(SUCCESS))
+        if (response.get(OUTCOME).asString().equals(SUCCESS)) {
             return response.get(RESULT);
-        else
+        } else {
             return response;
+        }
     }
 
     public Injector<ServerEnvironment> getServerEnvironmentInjector() {

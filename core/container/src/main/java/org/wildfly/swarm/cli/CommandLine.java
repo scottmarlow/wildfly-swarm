@@ -23,18 +23,21 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.StringTokenizer;
 
 import javax.enterprise.inject.Vetoed;
 
 import org.jboss.modules.Module;
+import org.jboss.modules.ModuleClassLoader;
 import org.jboss.modules.ModuleIdentifier;
 import org.jboss.modules.ModuleLoadException;
 import org.wildfly.swarm.Swarm;
-import org.wildfly.swarm.spi.api.StageConfig;
+import org.wildfly.swarm.SwarmInfo;
 import org.wildfly.swarm.spi.api.SwarmProperties;
 
 /**
@@ -56,6 +59,12 @@ public class CommandLine {
             .withDescription("Display this help")
             .withDefault(() -> false)
             .then((cmd, opt, value) -> cmd.put(opt, true));
+
+    public static final Option<String> CONFIG_HELP = new Option<String>()
+            .withLong("config-help")
+            .hasValue("<fraction>")
+            .withDescription("Display configuration help by fraction, or 'all' for all")
+            .then((cmd, opt, value) -> cmd.put(opt, value));
 
     /**
      * Default option for parsing -v and --version
@@ -106,34 +115,39 @@ public class CommandLine {
             .hasValue(CONFIG_ELEMENT)
             .valueMayBeSeparate(true)
             .withDescription("URL of the server configuration (e.g. standalone.xml)")
-            .withDefault(() -> {
-                return resolveResource("standalone.xml");
-            })
+            .withDefault(() -> resolveResource("standalone.xml"))
             .then((cmd, opt, value) -> cmd.put(opt, Option.toURL(value)));
 
 
-    /**
-     * Default option for parsing -s and --stage-config
-     */
-    public static final Option<URL> STAGE_CONFIG = new Option<URL>()
+    public static final Option<List<URL>> CONFIG = new Option<List<URL>>()
             .withShort('s')
-            .withLong("stage-config")
-            .hasValue(CONFIG_ELEMENT)
+            .withLong("config")
+            .hasValue("<config>")
             .valueMayBeSeparate(true)
-            .withDescription("URL to the stage configuration (e.g. config.yaml")
-            .withDefault(() -> {
-                return resolveResource("project-stages.yml");
-            })
-            .then((cmd, opt, value) -> cmd.put(opt, Option.toURL(value)));
+            .withDescription("URL to configuration YAML to use")
+            .then((cmd, opt, value) -> {
+                List<URL> configs = cmd.get(opt);
+                if (configs == null) {
+                    configs = new ArrayList<>();
+                    cmd.put(opt, configs);
+                }
+                configs.add(Option.toURL(value));
+            });
 
-
-    public static final Option<String> ACTIVE_STAGE = new Option<String>()
+    public static final Option<List<String>> PROFILES = new Option<List<String>>()
             .withShort('S')
-            .withLong("stage")
-            .hasValue("<active-stage>")
+            .withLong("profile")
+            .hasValue("<profile>")
             .valueMayBeSeparate(true)
-            .withDescription("When using a stage-config, set the active stage")
-            .then(CommandLine::put);
+            .withDescription("Selected profiles")
+            .then((cmd, opt, value) -> {
+                List<String> profiles = cmd.get(opt);
+                if (profiles == null) {
+                    profiles = new ArrayList<>();
+                    cmd.put(opt, profiles);
+                }
+                profiles.add(value);
+            });
 
     /**
      * Default option for parsing -b
@@ -151,12 +165,13 @@ public class CommandLine {
     public static Options defaultOptions() {
         return new Options(
                 HELP,
+                CONFIG_HELP,
                 VERSION,
                 PROPERTY,
                 PROPERTIES_URL,
                 SERVER_CONFIG,
-                STAGE_CONFIG,
-                ACTIVE_STAGE,
+                CONFIG,
+                PROFILES,
                 BIND
         );
     }
@@ -202,17 +217,63 @@ public class CommandLine {
         this.options.displayHelp(out);
     }
 
-    public void displayHelp(PrintStream out, StageConfig stageConfig) {
-        displayHelp(out);
-        if (stageConfig != null) {
-            out.println();
-            out.println("Stage configuration options:");
-            out.println();
-            for (String key : stageConfig.keys()) {
-                out.println("  " + key);
+    public void displayConfigHelp(PrintStream out, String fraction) throws IOException, ModuleLoadException {
+        ModuleClassLoader cl = Module.getBootModuleLoader().loadModule(ModuleIdentifier.create("swarm.application")).getClassLoader();
+        Enumeration<URL> docs = cl.getResources("META-INF/configuration-meta.properties");
+
+        Properties props = new Properties();
+
+        while (docs.hasMoreElements()) {
+            URL each = docs.nextElement();
+            Properties fractionDocs = new Properties();
+            fractionDocs.load(each.openStream());
+            if (fraction.equals("all") || fraction.equals(fractionDocs.getProperty("fraction"))) {
+                fractionDocs.remove("fraction");
+                props.putAll(fractionDocs);
             }
-            out.println();
         }
+
+        props.stringPropertyNames().stream()
+                .sorted()
+                .forEach(key -> {
+                    out.println("# " + key);
+                    out.println();
+                    out.println(formatDocs("    ", props.getProperty(key)));
+                    out.println();
+                });
+    }
+
+    private String formatDocs(String indent, String docs) {
+
+        StringTokenizer tokens = new StringTokenizer(docs);
+        StringBuilder formatted = new StringBuilder();
+
+        int lineLength = indent.length();
+        boolean freshLine = true;
+
+        formatted.append(indent);
+
+        while (tokens.hasMoreElements()) {
+            String next = tokens.nextToken();
+
+            if ((lineLength + 1 + next.length()) > 80) {
+                formatted.append("\n");
+                formatted.append(indent);
+                lineLength = indent.length();
+                freshLine = true;
+            }
+
+            if (freshLine) {
+                freshLine = false;
+            } else {
+                formatted.append(" ");
+            }
+
+            lineLength += next.length();
+            formatted.append(next);
+        }
+
+        return formatted.toString();
     }
 
     /**
@@ -221,7 +282,7 @@ public class CommandLine {
      * @param out The output stream to display help upon.
      */
     public void displayVersion(PrintStream out) {
-        out.println("WildFly Swarm version UNKNOWN");
+        out.println("WildFly Swarm version " + SwarmInfo.VERSION);
     }
 
     /**
@@ -232,7 +293,7 @@ public class CommandLine {
      *
      * @throws IOException If a URL is attempted to be read and fails.
      */
-    public void applyProperties() throws IOException {
+    public void applyProperties(Swarm swarm) throws IOException {
         URL propsUrl = get(PROPERTIES_URL);
 
         if (propsUrl != null) {
@@ -240,22 +301,18 @@ public class CommandLine {
             urlProps.load(propsUrl.openStream());
 
             for (String name : urlProps.stringPropertyNames()) {
-                System.setProperty(name, urlProps.getProperty(name));
+                swarm.withProperty(name, urlProps.getProperty(name));
             }
         }
 
         Properties props = get(PROPERTY);
 
         for (String name : props.stringPropertyNames()) {
-            System.setProperty(name, props.getProperty(name));
+            swarm.withProperty(name, props.getProperty(name));
         }
 
         if (get(BIND) != null) {
-            System.setProperty(SwarmProperties.BIND_ADDRESS, get(BIND));
-        }
-
-        if (get(ACTIVE_STAGE) != null) {
-            System.setProperty(SwarmProperties.PROJECT_STAGE, get(ACTIVE_STAGE));
+            swarm.withProperty(SwarmProperties.BIND_ADDRESS, get(BIND));
         }
     }
 
@@ -267,12 +324,21 @@ public class CommandLine {
      * @param swarm Swarm instance to configure.
      * @throws MalformedURLException If a URL is attempted to be read and fails.
      */
-    public void applyConfigurations(Swarm swarm) throws MalformedURLException {
+    public void applyConfigurations(Swarm swarm) throws IOException {
         if (get(SERVER_CONFIG) != null) {
             swarm.withXmlConfig(get(SERVER_CONFIG));
         }
-        if (get(STAGE_CONFIG) != null) {
-            swarm.withStageConfig(get(STAGE_CONFIG));
+        if (get(CONFIG) != null) {
+            List<URL> configs = get(CONFIG);
+            for (URL config : configs) {
+                swarm.withConfig(config);
+            }
+        }
+        if (get(PROFILES) != null) {
+            List<String> profiles = get(PROFILES);
+            for (String profile : profiles) {
+                swarm.withProfile(profile);
+            }
         }
     }
 
@@ -282,14 +348,19 @@ public class CommandLine {
      * @param swarm The Swarm instance to apply configuration to.
      * @throws IOException If an error occurs resolving any URL.
      */
-    public void apply(Swarm swarm) throws IOException {
-        applyProperties();
+    public void apply(Swarm swarm) throws IOException, ModuleLoadException {
+        applyProperties(swarm);
         applyConfigurations(swarm);
 
         if (get(HELP)) {
             displayVersion(System.err);
             System.err.println();
-            displayHelp(System.err, swarm.hasStageConfig() ? swarm.stageConfig() : null);
+            displayHelp(System.err);
+            System.exit(0);
+        }
+
+        if (get(CONFIG_HELP) != null) {
+            displayConfigHelp(System.err, get(CONFIG_HELP));
             System.exit(0);
         }
 

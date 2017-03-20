@@ -1,8 +1,8 @@
 package org.wildfly.swarm.topology.consul.runtime;
 
+import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.inject.Any;
 import javax.inject.Inject;
-import javax.inject.Singleton;
 
 import com.orbitz.consul.AgentClient;
 import com.orbitz.consul.Consul;
@@ -10,19 +10,13 @@ import org.jboss.msc.service.ServiceActivator;
 import org.jboss.msc.service.ServiceActivatorContext;
 import org.jboss.msc.service.ServiceRegistryException;
 import org.jboss.msc.service.ServiceTarget;
-import org.wildfly.swarm.spi.api.annotations.Configurable;
 import org.wildfly.swarm.topology.consul.ConsulTopologyFraction;
-import org.wildfly.swarm.topology.consul.runtime.Advertiser;
-import org.wildfly.swarm.topology.consul.runtime.AgentClientService;
-import org.wildfly.swarm.topology.consul.runtime.CatalogClientService;
-import org.wildfly.swarm.topology.consul.runtime.ConsulService;
-import org.wildfly.swarm.topology.consul.runtime.HealthClientService;
 
 /**
  * @author Heiko Braun
  * @since 18/05/16
  */
-@Singleton
+@ApplicationScoped
 public class AgentActivator implements ServiceActivator {
 
 

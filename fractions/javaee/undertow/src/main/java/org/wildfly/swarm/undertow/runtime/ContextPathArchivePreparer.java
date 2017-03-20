@@ -15,19 +15,30 @@
  */
 package org.wildfly.swarm.undertow.runtime;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
+
+import javax.enterprise.context.ApplicationScoped;
+
 import org.jboss.shrinkwrap.api.Archive;
 import org.wildfly.swarm.spi.api.ArchivePreparer;
 import org.wildfly.swarm.spi.api.Defaultable;
 import org.wildfly.swarm.spi.api.annotations.Configurable;
 import org.wildfly.swarm.undertow.WARArchive;
+import org.wildfly.swarm.undertow.internal.UndertowExternalMountsAsset;
 
 /**
  * @author Ken Finnigan
  */
+@ApplicationScoped
 public class ContextPathArchivePreparer implements ArchivePreparer {
 
     @Configurable("swarm.context.path")
     Defaultable<String> contextPath = Defaultable.string("/");
+
+    @Configurable("swarm.context.mounts")
+    List<String> mounts;
 
     @Override
     public void prepareArchive(Archive<?> archive) {
@@ -36,5 +47,24 @@ public class ContextPathArchivePreparer implements ArchivePreparer {
         if (warArchive.getContextRoot() == null) {
             warArchive.setContextRoot(contextPath.get());
         }
+
+        UndertowExternalMountsAsset ut = null;
+        if (mounts != null) {
+            for (String mountPath : mounts) {
+                Path staticPath = Paths.get(mountPath);
+                if (!staticPath.isAbsolute()) {
+                    staticPath = Paths.get(System.getProperty("user.dir"), staticPath.toString()).normalize();
+                }
+                if (ut == null) {
+                    ut = new UndertowExternalMountsAsset();
+                }
+                ut.externalMount(staticPath.toString());
+            }
+        }
+
+        if (ut != null) {
+            warArchive.add(ut, WARArchive.EXTERNAL_MOUNT_PATH);
+        }
+
     }
 }

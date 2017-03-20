@@ -17,10 +17,10 @@ package org.wildfly.swarm.jolokia.runtime;
 
 import java.util.function.Consumer;
 
+import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.inject.Any;
 import javax.enterprise.inject.Produces;
 import javax.inject.Inject;
-import javax.inject.Singleton;
 
 import org.jboss.shrinkwrap.api.Archive;
 import org.wildfly.swarm.jolokia.JolokiaFraction;
@@ -33,10 +33,11 @@ import org.wildfly.swarm.undertow.WARArchive;
 /**
  * @author Bob McWhirter
  */
-@Singleton
+@ApplicationScoped
 public class JolokiaWarDeploymentProducer {
 
     public static final String DEPLOYMENT_GAV = "org.jolokia:jolokia-war:war:*";
+
     public static final String DEPLOYMENT_NAME = "jolokia.war";
 
     @Inject
@@ -60,16 +61,16 @@ public class JolokiaWarDeploymentProducer {
             this.context = this.fraction.context();
         }
 
-        Archive deployment = this.lookup.artifact(DEPLOYMENT_GAV, DEPLOYMENT_NAME );
+        Archive deployment = this.lookup.artifact(DEPLOYMENT_GAV, DEPLOYMENT_NAME);
 
         deployment.as(WARArchive.class).setContextRoot(this.context);
 
-        Consumer<Archive> preparer = new ConfigurationValueAccessPreparer( this.jolokiaAccessXML );
-        if ( this.fraction.jolokiaWarPreparer() != null ) {
-            preparer = preparer.andThen( this.fraction.jolokiaWarPreparer() );
+        Consumer<Archive> preparer = new ConfigurationValueAccessPreparer(this.jolokiaAccessXML);
+        if (this.fraction.jolokiaWarPreparer() != null) {
+            preparer = preparer.andThen(this.fraction.jolokiaWarPreparer());
         }
 
-        preparer.accept( deployment );
+        preparer.accept(deployment);
 
         return deployment;
     }

@@ -15,7 +15,7 @@
  */
 package org.wildfly.swarm.datasources.runtime.drivers;
 
-import javax.inject.Singleton;
+import javax.enterprise.context.ApplicationScoped;
 
 import org.jboss.modules.ModuleIdentifier;
 import org.wildfly.swarm.config.datasources.DataSource;
@@ -27,7 +27,7 @@ import org.wildfly.swarm.datasources.runtime.DriverInfo;
  *
  * @author Bob McWhirter
  */
-@Singleton
+@ApplicationScoped
 public class PostgreSQLDriverInfo extends DriverInfo {
     public static final String DEFAULT_CONNECTION_URL = "jdbc:postgresql://localhost:5432/test";
 
@@ -36,12 +36,13 @@ public class PostgreSQLDriverInfo extends DriverInfo {
     public static final String DEFAULT_PASSWORD = "postgres";
 
     public PostgreSQLDriverInfo() {
-        super("postgresql", ModuleIdentifier.create("org.postgresql"), "org.postgresql.Driver");
+        super("postgresql", ModuleIdentifier.create("org.postgresql"), "org.postgresql.Driver",
+                "org.postgis.DriverWrapper");
     }
 
     @Override
     protected void configureDriver(JDBCDriver driver) {
-        driver.xaDatasourceClass("org.postgresql.xa.PGXADataSource");
+        driver.driverXaDatasourceClassName("org.postgresql.xa.PGXADataSource");
     }
 
     @Override

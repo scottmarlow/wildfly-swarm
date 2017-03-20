@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import javax.enterprise.context.ApplicationScoped;
+
 import org.jboss.jandex.AnnotationInstance;
 import org.jboss.jandex.DotName;
 import org.jboss.jandex.Index;
@@ -16,6 +18,7 @@ import org.wildfly.swarm.topology.TopologyArchive;
 /**
  * @author Bob McWhirter
  */
+@ApplicationScoped
 public class AdvertisingMetadataProcessor implements ArchiveMetadataProcessor {
 
     @Override
@@ -23,14 +26,14 @@ public class AdvertisingMetadataProcessor implements ArchiveMetadataProcessor {
         List<AnnotationInstance> annos = index.getAnnotations(DotName.createSimple(Advertise.class.getName()));
         List<AnnotationInstance> repeatingAnnos = index.getAnnotations(DotName.createSimple(Advertises.class.getName()));
 
-        List<String> names = Stream.concat( annos.stream(),
-                repeatingAnnos
-                .stream()
-                .flatMap( anno-> Stream.of( anno.value().asNestedArray() )) )
-                .map( anno-> anno.value().asString() )
+        List<String> names = Stream.concat(annos.stream(),
+                                           repeatingAnnos
+                                                   .stream()
+                                                   .flatMap(anno -> Stream.of(anno.value().asNestedArray())))
+                .map(anno -> anno.value().asString())
                 .collect(Collectors.toList());
 
-        if ( ! names.isEmpty() ) {
+        if (!names.isEmpty()) {
             archive.as(TopologyArchive.class)
                     .advertise(names);
         }

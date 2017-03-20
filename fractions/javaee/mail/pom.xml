@@ -10,7 +10,7 @@
   <parent>
     <groupId>org.wildfly.swarm</groupId>
     <artifactId>wildfly-swarm</artifactId>
-    <version>2017.2.0-SNAPSHOT</version>
+    <version>2017.4.0-SNAPSHOT</version>
     <relativePath>../../../</relativePath>
   </parent>
 
@@ -71,6 +71,12 @@
     <dependency>
       <groupId>javax.activation</groupId>
       <artifactId>activation</artifactId>
+    </dependency>
+
+    <!-- Meta SPI -->
+    <dependency>
+      <groupId>org.wildfly.swarm</groupId>
+      <artifactId>meta-spi</artifactId>
     </dependency>
 
     <dependency>

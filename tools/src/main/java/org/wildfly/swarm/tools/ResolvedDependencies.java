@@ -32,17 +32,18 @@ import org.jboss.shrinkwrap.api.Node;
  * Dependencies that have been resolved to local files.
  *
  * @author Heiko Braun
+ * @author Ken Finnigan
  * @since 26/10/2016
  */
 public interface ResolvedDependencies {
 
-    public static final String WILDFLY_SWARM_GROUP_ID = "org.wildfly.swarm";
+    String WILDFLY_SWARM_GROUP_ID = "org.wildfly.swarm";
 
-    public static final String WILDFLY_SWARM_BOOTSTRAP_ARTIFACT_ID = "bootstrap";
+    String WILDFLY_SWARM_BOOTSTRAP_ARTIFACT_ID = "bootstrap";
 
-    public static final String JBOSS_MODULES_GROUP_ID = "org.jboss.modules";
+    String JBOSS_MODULES_GROUP_ID = "org.jboss.modules";
 
-    public static final String JBOSS_MODULES_ARTIFACT_ID = "jboss-modules";
+    String JBOSS_MODULES_ARTIFACT_ID = "jboss-modules";
 
 
     Set<ArtifactSpec> getDependencies();
@@ -52,6 +53,8 @@ public interface ResolvedDependencies {
     ArtifactSpec findJBossModulesJar();
 
     ArtifactSpec findArtifact(String groupId, String artifactId, String version, String packaging, String classifier);
+
+    ArtifactSpec findArtifact(String groupId, String artifactId, String version, String packaging, String classifier, boolean includeTestScope);
 
     static boolean isExplodedBootstrap(ArtifactSpec dependency) {
         if (dependency.groupId().equals(JBOSS_MODULES_GROUP_ID) && dependency.artifactId().equals(JBOSS_MODULES_ARTIFACT_ID)) {
@@ -65,7 +68,7 @@ public interface ResolvedDependencies {
 
     static Stream<ModuleAnalyzer> findModuleXmls(File file) {
         List<ModuleAnalyzer> analyzers = new ArrayList<>();
-        try (JarFile jar = new JarFile(file)){
+        try (JarFile jar = new JarFile(file)) {
 
             Enumeration<JarEntry> entries = jar.entries();
 
@@ -74,7 +77,7 @@ public interface ResolvedDependencies {
                 String name = each.getName();
 
                 if (name.startsWith("modules/") && name.endsWith("module.xml")) {
-                    try (InputStream in = jar.getInputStream(each)){
+                    try (InputStream in = jar.getInputStream(each)) {
                         analyzers.add(new ModuleAnalyzer(in));
                     } catch (IOException e) {
                         e.printStackTrace();

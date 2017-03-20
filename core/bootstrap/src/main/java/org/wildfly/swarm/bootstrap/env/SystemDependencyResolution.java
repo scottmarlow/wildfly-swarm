@@ -14,17 +14,20 @@ import java.util.stream.Collectors;
  * @author Heiko Braun
  * @since 18/07/16
  */
-public class SystemDependencyResolution implements DependencyResolution {
+class SystemDependencyResolution implements DependencyResolution {
 
 
-    public SystemDependencyResolution() {
+    SystemDependencyResolution() {
         final String classpathProp = System.getProperty("java.class.path");
         final String javaHomProp = System.getProperty("java.home");
         final String userDirProp = System.getProperty("user.dir");
         final String testClasspatProp = System.getProperty("swarm.test.dependencies");
 
+        //Dedect gradle cache
+        this.useGradleRepo = classpathProp.contains(File.separator + ".gradle");
+
         this.classpath = Arrays.asList(classpathProp.split(File.pathSeparator));
-        this.testClasspath = testClasspatProp != null ? Arrays.asList(testClasspatProp.split(File.pathSeparator)) : Collections.EMPTY_LIST;
+        this.testClasspath = testClasspatProp != null ? Arrays.asList(testClasspatProp.split(File.pathSeparator)) : Collections.emptyList();
 
         this.pwd = userDirProp;
         this.javaHome = javaHomProp.endsWith(JRE) ? javaHomProp.substring(0, javaHomProp.lastIndexOf(JRE)) : javaHomProp;
@@ -41,7 +44,7 @@ public class SystemDependencyResolution implements DependencyResolution {
             ApplicationEnvironment env = ApplicationEnvironment.get();
             Set<String> classpathElements = new HashSet<>();
             Set<String> providedGAVs = new HashSet<>();
-            List<String> testClasspathElements = testClasspath != null ? testClasspath : Collections.EMPTY_LIST;
+            List<String> testClasspathElements = testClasspath != null ? testClasspath : Collections.emptyList();
 
             for (final String element : classpath) {
                 if (!element.startsWith(javaHome) && !element.startsWith(pwd + File.separatorChar) && !element.endsWith(".pom")) {
@@ -57,8 +60,8 @@ public class SystemDependencyResolution implements DependencyResolution {
                     env.getRemovableDependencies()
                             .stream()
                             .map(e -> e.split(":"))
-                            .map(e -> e[0] + File.separatorChar + e[1])
-                            .map(m -> m.replace('.', File.separatorChar))
+                            .map(e -> e[0] + File.separatorChar + e[1] + File.separatorChar)
+                            .map(m -> (useGradleRepo ? m : m.replace('.', File.separatorChar)))
                             .collect(Collectors.toList())
             );
 
@@ -77,16 +80,16 @@ public class SystemDependencyResolution implements DependencyResolution {
         return archivesPaths;
     }
 
-    private static final String JAR = ".jar";
-
     private static final String JRE = "jre";
 
-    final List<String> classpath;
+    private final List<String> classpath;
 
-    final String javaHome;
+    private final String javaHome;
 
-    final String pwd;
+    private final String pwd;
 
-    final List<String> testClasspath;
+    private final List<String> testClasspath;
+
+    private final boolean useGradleRepo;
 
 }

@@ -5,10 +5,10 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -18,20 +18,24 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.jboss.logging.Logger;
+import org.wildfly.swarm.bootstrap.performance.Performance;
 import org.wildfly.swarm.config.runtime.Keyed;
 import org.wildfly.swarm.config.runtime.SubresourceInfo;
-import org.wildfly.swarm.internal.SwarmMessages;
+import org.wildfly.swarm.internal.SwarmConfigMessages;
 import org.wildfly.swarm.spi.api.Defaultable;
 import org.wildfly.swarm.spi.api.Fraction;
-import org.wildfly.swarm.spi.api.StageConfig;
 import org.wildfly.swarm.spi.api.annotations.Configurable;
+import org.wildfly.swarm.spi.api.annotations.ConfigurableAlias;
+import org.wildfly.swarm.spi.api.config.ConfigKey;
+import org.wildfly.swarm.spi.api.config.ConfigView;
+import org.wildfly.swarm.spi.api.config.Converter;
+import org.wildfly.swarm.spi.api.config.Resolver;
+import org.wildfly.swarm.spi.api.config.SimpleKey;
 
 /**
  * @author Bob McWhirter
  */
 public class ConfigurableManager implements AutoCloseable {
-
-    private static final String DOT = ".";
 
     private static final String SUBRESOURCES = "subresources";
 
@@ -44,6 +48,7 @@ public class ConfigurableManager implements AutoCloseable {
     }};
 
     private static final Set<Class<?>> BLACKLISTED_CLASSES = new HashSet<Class<?>>() {{
+        add(List.class);
         add(Map.class);
         add(Properties.class);
     }};
@@ -61,6 +66,7 @@ public class ConfigurableManager implements AutoCloseable {
         add(Float.TYPE);
         add(String.class);
 
+        add(List.class);
         add(Map.class);
         add(Properties.class);
 
@@ -71,86 +77,134 @@ public class ConfigurableManager implements AutoCloseable {
 
     private final List<ConfigurableHandle> configurables = new ArrayList<>();
 
-    private final StageConfig stageConfig;
+    private final List<Object> deferred = new ArrayList<>();
 
-    public ConfigurableManager(StageConfig stageConfig) {
-        this.stageConfig = stageConfig;
+    private final ConfigView configView;
+
+    public ConfigurableManager(ConfigView configView) {
+        this.configView = configView;
+    }
+
+    public ConfigView configView() {
+        return this.configView;
     }
 
     public List<ConfigurableHandle> configurables() {
         return this.configurables;
     }
 
-    protected <T> void configure(ConfigurableHandle configurable) throws IllegalAccessException {
-        StageConfig.Resolver<?> resolver = this.stageConfig.resolve(configurable.name());
+    @SuppressWarnings("unchecked")
+    protected <T> void configure(ConfigurableHandle configurable) throws Exception {
+        try (AutoCloseable handle = Performance.accumulate("ConfigurableManager#configure")) {
+            Resolver<?> resolver = this.configView.resolve(configurable.key());
 
-        Class<?> resolvedType = configurable.type();
+            Class<?> resolvedType = configurable.type();
 
-        boolean isMap = false;
-        boolean isProperties = false;
+            boolean isList = false;
+            boolean isMap = false;
+            boolean isProperties = false;
 
-        if (resolvedType.isEnum()) {
-            resolver = resolver.as((Class<Enum>) resolvedType, converter((Class<Enum>) resolvedType));
-        } else if (Map.class.isAssignableFrom(resolvedType)) {
-            isMap = true;
-            resolver = mapResolver((StageConfig.Resolver<String>) resolver, configurable.name());
-        } else if (Properties.class.isAssignableFrom(resolvedType)) {
-            isProperties = true;
-            resolver = propertiesResolver((StageConfig.Resolver<String>) resolver, configurable.name());
-        } else {
-            resolver = resolver.as(configurable.type());
-        }
-
-        if (isMap || isProperties || resolver.hasValue()) {
-            Object resolvedValue = resolver.getValue();
-            if (isMap && ((Map) resolvedValue).isEmpty()) {
-                // ignore
-            } else if (isProperties && ((Properties) resolvedValue).isEmpty()) {
-                // also ignore
+            if (resolvedType.isEnum()) {
+                resolver = resolver.as((Class<Enum>) resolvedType, converter((Class<Enum>) resolvedType));
+            } else if (List.class.isAssignableFrom(resolvedType)) {
+                isList = true;
+                resolver = listResolver((Resolver<String>) resolver, configurable.key());
+            } else if (Map.class.isAssignableFrom(resolvedType)) {
+                isMap = true;
+                resolver = mapResolver((Resolver<String>) resolver, configurable.key());
+            } else if (Properties.class.isAssignableFrom(resolvedType)) {
+                isProperties = true;
+                resolver = propertiesResolver((Resolver<String>) resolver, configurable.key());
             } else {
-                configurable.set(configurable.type().cast(resolvedValue));
+                resolver = resolver.as(resolvedType);
+            }
+
+            if (isList || isMap || isProperties || resolver.hasValue()) {
+                Object resolvedValue = resolver.getValue();
+                if (isList && ((List) resolvedValue).isEmpty()) {
+                    // ignore
+                } else if (isMap && ((Map) resolvedValue).isEmpty()) {
+                    // ignore
+                } else if (isProperties && ((Properties) resolvedValue).isEmpty()) {
+                    // also ignore
+                } else {
+                    configurable.set(resolvedType.cast(resolvedValue));
+                }
             }
         }
     }
 
-    private <ENUMTYPE extends Enum<ENUMTYPE>> StageConfig.Converter<ENUMTYPE> converter(Class<ENUMTYPE> enumType) {
-        return (str) -> Enum.valueOf(enumType, str.toUpperCase().replace('-', '_'));
+    private <ENUMTYPE extends Enum<ENUMTYPE>> Converter<ENUMTYPE> converter(Class<ENUMTYPE> enumType) {
+        return (str) -> {
+            try {
+                return Enum.valueOf(enumType, str.toUpperCase().replace('-', '_'));
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Invalid value '" + str + "'; should be one of: "
+                        + String.join(",", Arrays.stream(enumType.getEnumConstants()).map((constant) -> constant.toString()).collect(Collectors.toList())));
+            }
+        };
     }
 
-    private StageConfig.Resolver<Map> mapResolver(StageConfig.Resolver<String> resolver, String name) {
-        return resolver.withDefault("").as(Map.class, mapConverter(name));
+    private Resolver<List> listResolver(Resolver<String> resolver, ConfigKey key) {
+        return resolver.withDefault("").as(List.class, listConverter(key));
     }
 
-    private StageConfig.Converter<Map> mapConverter(String name) {
+    private Converter<List> listConverter(ConfigKey key) {
         return (ignored) -> {
-            Map map = new HashMap();
-            Set<String> subKeys = this.stageConfig.simpleSubkeys(name);
+            return this.configView.simpleSubkeys(key).stream()
+                    .map((subKey) -> {
+                        return this.configView.resolve(key.append(subKey)).getValue();
+                    })
+                    .collect(Collectors.toList());
+        };
+    }
 
-            for (String subKey : subKeys) {
-                map.put(subKey, this.stageConfig.resolve(name + DOT + subKey).getValue());
+    private Resolver<Map> mapResolver(Resolver<String> resolver, ConfigKey key) {
+        return resolver.withDefault("").as(Map.class, mapConverter(key));
+    }
+
+    private Converter<Map> mapConverter(ConfigKey key) {
+        return (ignored) -> {
+            Map<String,Object> map = new HashMap<>();
+            Set<SimpleKey> subKeys = this.configView.simpleSubkeys(key);
+
+            for (SimpleKey subKey : subKeys) {
+                map.put(subKey.name(), this.configView.resolve(key.append(subKey)).getValue());
             }
             return map;
         };
     }
 
-    private StageConfig.Resolver<Properties> propertiesResolver(StageConfig.Resolver<String> resolver, String name) {
-        return resolver.withDefault("").as(Properties.class, propertiesConverter(name));
+    private Resolver<Properties> propertiesResolver(Resolver<String> resolver, ConfigKey key) {
+        return resolver.withDefault("").as(Properties.class, propertiesConverter(key));
     }
 
-    private StageConfig.Converter<Properties> propertiesConverter(String name) {
+    private Converter<Properties> propertiesConverter(ConfigKey key) {
         return (ignored) -> {
             Properties props = new Properties();
-            Set<String> subKeys = this.stageConfig.simpleSubkeys(name);
+            Set<SimpleKey> subKeys = this.configView.simpleSubkeys(key);
 
-            for (String subKey : subKeys) {
-                props.setProperty(subKey, this.stageConfig.resolve(name + DOT + subKey).getValue());
+            for (SimpleKey subKey : subKeys) {
+                props.setProperty(subKey.name(), this.configView.resolve(key.append(subKey)).getValue());
             }
             return props;
         };
     }
 
-    public void scan(Object instance) throws IllegalAccessException, InvocationTargetException, NoSuchMethodException {
-        //scan(instance, instance instanceof Fraction);
+    public void rescan() throws Exception {
+        for (Object each : this.deferred) {
+            scanInternal(each);
+        }
+    }
+
+    public void scan(Object instance) throws Exception {
+        try (AutoCloseable handle = Performance.accumulate("ConfigurableManager#scan")) {
+            this.deferred.add(instance);
+            scanInternal(instance);
+        }
+    }
+
+    private void scanInternal(Object instance) throws Exception {
         if (instance instanceof Fraction) {
             scanFraction((Fraction) instance);
         } else {
@@ -158,21 +212,22 @@ public class ConfigurableManager implements AutoCloseable {
         }
     }
 
-    protected void scanFraction(Fraction fraction) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
-        String prefix = nameFor(fraction);
+
+    protected void scanFraction(Fraction fraction) throws Exception {
+        ConfigKey prefix = nameFor(fraction);
         scan(prefix, fraction, true);
     }
 
-    protected String getKey(Object object) throws InvocationTargetException, IllegalAccessException {
+    protected SimpleKey getKey(Object object) throws Exception {
         if (object instanceof Keyed) {
-            return ((Keyed) object).getKey();
+            return new SimpleKey(((Keyed) object).getKey());
         }
 
         Method getKey = findGetKeyMethod(object);
         if (getKey != null) {
             Object key = getKey.invoke(object);
             if (key != null) {
-                return key.toString();
+                return new SimpleKey(key.toString());
             }
         }
         return null;
@@ -204,29 +259,29 @@ public class ConfigurableManager implements AutoCloseable {
         return null;
     }
 
-    protected String nameFor(Fraction fraction) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
+    protected ConfigKey nameFor(Fraction fraction) throws Exception {
         Configurable anno = fraction.getClass().getAnnotation(Configurable.class);
         if (anno != null) {
-            return anno.value();
+            return ConfigKey.parse(anno.value());
         }
 
-        String key = getKey(fraction);
+        SimpleKey key = getKey(fraction);
 
         if (key == null) {
-            key = fraction.getClass().getSimpleName().replace("Fraction", "").toLowerCase();
+            key = new SimpleKey(fraction.getClass().getSimpleName().replace("Fraction", "").toLowerCase());
         }
 
-        return "swarm." + key;
+        return ConfigKey.of("swarm").append(key);
     }
 
-    protected void scan(String prefix, Object instance, boolean isFraction) throws IllegalAccessException, InvocationTargetException {
+    protected void scan(ConfigKey prefix, Object instance, boolean isFraction) throws Exception {
         scan(prefix, instance, instance.getClass(), isFraction);
         if (isFraction) {
             scanSubresources(prefix, instance);
         }
     }
 
-    protected void scan(String prefix, Object instance, Class<?> curClass, boolean isFraction) throws IllegalAccessException {
+    protected void scan(ConfigKey prefix, Object instance, Class<?> curClass, boolean isFraction) throws Exception {
         if (curClass == null || curClass == Object.class || isBlacklisted(curClass)) {
             return;
         }
@@ -239,15 +294,32 @@ public class ConfigurableManager implements AutoCloseable {
                 }
                 if (isFraction || field.getAnnotation(Configurable.class) != null) {
                     if (isConfigurableType(field.getType())) {
-                        ConfigurableHandle configurable = new ConfigurableHandle(nameFor(prefix, field), instance, field);
-                        this.configurables.add(configurable);
-                        configure(configurable);
+                        ConfigKey name = nameFor(prefix, field);
+                        if (!seen(name)) {
+                            ConfigurableHandle configurable = new ObjectBackedConfigurableHandle(name, instance, field);
+                            this.configurables.add(configurable);
+                            configure(configurable);
+                        }
+
+                        // Process @ConfigurableAlias
+                        if (field.getAnnotation(ConfigurableAlias.class) != null) {
+                            name = nameForAlias(prefix, field);
+                            if (!seen(name)) {
+                                ConfigurableHandle configurable = new ObjectBackedConfigurableHandle(name, instance, field);
+                                this.configurables.add(configurable);
+                                configure(configurable);
+                            }
+                        }
                     }
                 }
             }
         }
 
         scan(prefix, instance, curClass.getSuperclass(), isFraction);
+    }
+
+    private boolean seen(ConfigKey name) {
+        return this.configurables.stream().anyMatch(e -> e.key().equals(name));
     }
 
     private boolean isConfigurableType(Class<?> type) {
@@ -277,22 +349,34 @@ public class ConfigurableManager implements AutoCloseable {
         return isBlacklisted(field.getType());
     }
 
-    protected String nameFor(String prefix, Field field) {
+    protected ConfigKey nameFor(ConfigKey prefix, Field field) {
         Configurable anno = field.getAnnotation(Configurable.class);
 
         if (anno != null) {
             if (!anno.value().equals("")) {
-                return anno.value();
+                return ConfigKey.parse(anno.value());
             }
             if (!anno.simpleName().equals("")) {
-                return prefix + DOT + anno.simpleName();
+                return prefix.append(ConfigKey.parse(anno.simpleName()));
             }
         }
 
-        return prefix + DOT + nameFor(field);
+        return prefix.append(nameFor(field));
     }
 
-    protected String nameFor(Field field) {
+    protected ConfigKey nameForAlias(ConfigKey prefix, Field field) {
+        ConfigurableAlias annoAlias = field.getAnnotation(ConfigurableAlias.class);
+
+        if (annoAlias != null) {
+            if (!annoAlias.value().equals("")) {
+                return ConfigKey.parse(annoAlias.value());
+            }
+        }
+
+        return prefix.append(nameFor(field));
+    }
+
+    protected ConfigKey nameFor(Field field) {
         StringBuilder str = new StringBuilder();
 
         char[] chars = field.getName().toCharArray();
@@ -305,10 +389,10 @@ public class ConfigurableManager implements AutoCloseable {
             str.append(Character.toLowerCase(c));
         }
 
-        return str.toString();
+        return ConfigKey.of(str.toString());
     }
 
-    protected void scanSubresources(String prefix, Object instance) throws InvocationTargetException, IllegalAccessException {
+    protected void scanSubresources(ConfigKey prefix, Object instance) throws Exception {
         Method method = getSubresourcesMethod(instance);
 
         if (method == null) {
@@ -325,24 +409,24 @@ public class ConfigurableManager implements AutoCloseable {
             }
             field.setAccessible(true);
             Object value = field.get(subresources);
-            String subPrefix = prefix + DOT + nameFor(field);
+            ConfigKey subPrefix = prefix.append(nameFor(field));
             if (value != null && value instanceof List) {
                 int index = 0;
-                Set<String> seenKeys = new HashSet<>();
+                Set<SimpleKey> seenKeys = new HashSet<>();
                 for (Object each : ((List) value)) {
-                    String key = getKey(each);
-                    String itemPrefix = null;
+                    SimpleKey key = getKey(each);
+                    ConfigKey itemPrefix = null;
                     if (key != null) {
                         seenKeys.add(key);
-                        itemPrefix = subPrefix + DOT + key;
+                        itemPrefix = subPrefix.append(key);
                     } else {
-                        itemPrefix = subPrefix + DOT + index;
+                        itemPrefix = subPrefix.append("" + index);
                     }
                     scan(itemPrefix, each, true);
                     ++index;
                 }
 
-                Set<String> keysWithConfiguration = this.stageConfig.simpleSubkeys(subPrefix);
+                Set<SimpleKey> keysWithConfiguration = this.configView.simpleSubkeys(subPrefix);
 
                 keysWithConfiguration.removeAll(seenKeys);
 
@@ -350,11 +434,11 @@ public class ConfigurableManager implements AutoCloseable {
                     Method factoryMethod = getKeyedFactoryMethod(instance, field);
 
                     if (factoryMethod != null) {
-                        for (String key : keysWithConfiguration) {
-                            String itemPrefix = subPrefix + DOT + key;
+                        for (SimpleKey key : keysWithConfiguration) {
+                            ConfigKey itemPrefix = subPrefix.append(key);
                             Object lambda = createLambda(itemPrefix, factoryMethod);
                             if (lambda != null) {
-                                factoryMethod.invoke(instance, key, lambda);
+                                factoryMethod.invoke(instance, key.name(), lambda);
                             }
                         }
                     }
@@ -364,7 +448,7 @@ public class ConfigurableManager implements AutoCloseable {
                 if (value == null) {
                     // If doesn't exist, only create it if there's some
                     // configuration keys that imply we want it.
-                    if (this.stageConfig.hasKeyOrSubkeys(subPrefix)) {
+                    if (this.configView.hasKeyOrSubkeys(subPrefix)) {
                         Method factoryMethod = getNonKeyedFactoryMethod(instance, field);
                         if (factoryMethod != null) {
                             Object lambda = createLambda(subPrefix, factoryMethod);
@@ -380,7 +464,7 @@ public class ConfigurableManager implements AutoCloseable {
         }
     }
 
-    protected Object createLambda(String itemPrefix, Method factoryMethod) {
+    protected Object createLambda(ConfigKey itemPrefix, Method factoryMethod) {
 
         MethodHandles.Lookup lookup = MethodHandles.lookup();
 
@@ -399,26 +483,27 @@ public class ConfigurableManager implements AutoCloseable {
                 return null;
             }
 
-            MethodHandle target = lookup.findVirtual(ConfigurableManager.class, "subresourceAdded", MethodType.methodType(void.class, String.class, Object.class));
+            MethodHandle target = lookup.findVirtual(ConfigurableManager.class, "subresourceAdded", MethodType.methodType(void.class, ConfigKey.class, Object.class));
 
             MethodType samType = MethodType.methodType(void.class, acceptMethod.getParameterTypes()[0]);
 
             MethodHandle mh = LambdaMetafactory.metafactory(
                     lookup,
                     ACCEPT,
-                    MethodType.methodType(consumerType, ConfigurableManager.class, String.class),
+                    MethodType.methodType(consumerType, ConfigurableManager.class, ConfigKey.class),
                     samType,
                     target,
                     samType)
                     .getTarget();
 
             return mh.invoke(this, itemPrefix);
+
         } catch (Throwable t) {
             throw new RuntimeException(t);
         }
     }
 
-    public void subresourceAdded(String itemPrefix, Object object) throws InvocationTargetException, IllegalAccessException {
+    public void subresourceAdded(ConfigKey itemPrefix, Object object) throws Exception {
         scan(itemPrefix, object, true);
     }
 
@@ -544,8 +629,8 @@ public class ConfigurableManager implements AutoCloseable {
         int longestKey = 0;
 
         for (ConfigurableHandle each : this.configurables) {
-            if (each.name().length() > longestKey) {
-                longestKey = each.name().length();
+            if (each.key().name().length() > longestKey) {
+                longestKey = each.key().name().length();
             }
         }
 
@@ -553,13 +638,13 @@ public class ConfigurableManager implements AutoCloseable {
 
         List<ConfigurableHandle> sorted = this.configurables
                 .stream()
-                .sorted((l, r) -> l.name().compareTo(r.name()))
+                .sorted((l, r) -> l.key().name().compareTo(r.key().name()))
                 .collect(Collectors.toList());
 
         boolean first = true;
         for (ConfigurableHandle each : sorted) {
             try {
-                String name = each.name();
+                String name = each.key().name();
                 Object value = each.currentValue();
 
                 if (value != null || verbose) {
@@ -579,16 +664,16 @@ public class ConfigurableManager implements AutoCloseable {
                     first = false;
                 }
 
-            } catch (IllegalAccessException e) {
-                e.printStackTrace();
+            } catch (Exception e) {
+                SwarmConfigMessages.MESSAGES.errorResolvingConfigurableValue(each.key().name(), e);
             }
         }
-        SwarmMessages.MESSAGES.configuration(str.toString());
+        SwarmConfigMessages.MESSAGES.configuration(str.toString());
     }
 
     public void close() {
         this.configurables.clear();
-
+        this.deferred.clear();
     }
 
 }

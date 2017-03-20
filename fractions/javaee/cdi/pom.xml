@@ -10,7 +10,7 @@
   <parent>
     <groupId>org.wildfly.swarm</groupId>
     <artifactId>wildfly-swarm</artifactId>
-    <version>2017.2.0-SNAPSHOT</version>
+    <version>2017.4.0-SNAPSHOT</version>
     <relativePath>../../../</relativePath>
   </parent>
 
@@ -44,6 +44,10 @@
     </dependency>
     <dependency>
       <groupId>org.wildfly.swarm</groupId>
+      <artifactId>logging</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.wildfly.swarm</groupId>
       <artifactId>cdi-config</artifactId>
     </dependency>
     <dependency>
@@ -63,10 +67,6 @@
       <groupId>org.wildfly.swarm</groupId>
       <artifactId>transactions</artifactId>
     </dependency>
-    <dependency>
-      <groupId>org.wildfly.swarm</groupId>
-      <artifactId>undertow</artifactId>
-    </dependency>
 
     <!-- Provided APIs -->
     <dependency>
@@ -83,6 +83,12 @@
       <groupId>org.wildfly</groupId>
       <artifactId>wildfly-weld</artifactId>
       <scope>provided</scope>
+    </dependency>
+
+    <!-- Meta SPI -->
+    <dependency>
+      <groupId>org.wildfly.swarm</groupId>
+      <artifactId>meta-spi</artifactId>
     </dependency>
 
     <dependency>

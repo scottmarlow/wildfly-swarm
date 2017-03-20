@@ -17,9 +17,9 @@ package org.wildfly.swarm.vertx.runtime;
 
 import java.util.Arrays;
 
+import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.inject.Instance;
 import javax.inject.Inject;
-import javax.inject.Singleton;
 
 import org.wildfly.swarm.config.resource.adapters.ResourceAdapter;
 import org.wildfly.swarm.config.resource.adapters.resource_adapter.ConfigProperties;
@@ -32,7 +32,7 @@ import org.wildfly.swarm.vertx.VertxFraction;
  * @author Ken Finnigan
  */
 @Pre
-@Singleton
+@ApplicationScoped
 public class VertxAdapterCustomizer implements Customizer {
     @Inject
     Instance<ResourceAdapterFraction> resourceAdapterFractionInstance;
@@ -40,6 +40,7 @@ public class VertxAdapterCustomizer implements Customizer {
     @Inject
     Instance<VertxFraction> vertxFractionInstance;
 
+    @SuppressWarnings("unchecked")
     @Override
     public void customize() {
         if (!resourceAdapterFractionInstance.isUnsatisfied() && !vertxFractionInstance.isUnsatisfied()) {

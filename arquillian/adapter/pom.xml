@@ -9,9 +9,9 @@
 
   <parent>
     <groupId>org.wildfly.swarm</groupId>
-    <artifactId>arquillian-parent</artifactId>
-    <version>2017.2.0-SNAPSHOT</version>
-    <relativePath>../</relativePath>
+    <artifactId>wildfly-swarm</artifactId>
+    <version>2017.4.0-SNAPSHOT</version>
+    <relativePath>../../</relativePath>
   </parent>
 
   <groupId>org.wildfly.swarm</groupId>
@@ -36,6 +36,10 @@
       <groupId>org.wildfly.swarm</groupId>
       <artifactId>arquillian-resolver</artifactId>
       <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.wildfly.swarm</groupId>
+      <artifactId>fraction-metadata</artifactId>
     </dependency>
     <dependency>
       <groupId>org.wildfly.swarm</groupId>
@@ -96,12 +100,6 @@
     </dependency>
 
     <dependency>
-      <groupId>org.gradle</groupId>
-      <artifactId>gradle-tooling-api</artifactId>
-      <version>3.0</version>
-    </dependency>
-
-    <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
       <scope>compile</scope>
@@ -120,16 +118,5 @@
     </dependency>
 
   </dependencies>
-
-
-  <repositories>
-    <repository>
-      <id>gradle-tooling</id>
-      <url>http://repo.gradle.org/gradle/libs-releases-local</url>
-      <releases>
-        <enabled>true</enabled>
-      </releases>
-    </repository>
-  </repositories>
 
 </project>

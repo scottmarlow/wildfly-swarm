@@ -29,7 +29,7 @@ import org.wildfly.swarm.arquillian.DefaultDeployment;
 import static org.junit.Assert.assertEquals;
 
 @RunWith(Arquillian.class)
-@DefaultDeployment
+@DefaultDeployment(type = DefaultDeployment.Type.JAR)
 public class InfinispanRemoteTest {
 
     @ArquillianResource
@@ -39,7 +39,7 @@ public class InfinispanRemoteTest {
     public void testBasic() throws Exception {
         CacheContainer cacheContainer =
                 (CacheContainer) new InitialContext().lookup("java:jboss/infinispan/container/server");
-        Cache cache = cacheContainer.getCache("default");
+        Cache<String,String> cache = cacheContainer.getCache("default");
         cache.put("ham", "biscuit");
         assertEquals("biscuit", cache.get("ham"));
     }

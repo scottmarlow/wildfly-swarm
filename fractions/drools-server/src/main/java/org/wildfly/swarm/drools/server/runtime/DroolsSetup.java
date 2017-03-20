@@ -1,7 +1,6 @@
 package org.wildfly.swarm.drools.server.runtime;
 
 import java.io.File;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 
@@ -9,10 +8,8 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.inject.Any;
 import javax.enterprise.inject.Instance;
 import javax.inject.Inject;
-import javax.inject.Singleton;
 
 import org.wildfly.swarm.bootstrap.util.TempFileManager;
-import org.wildfly.swarm.config.Security;
 import org.wildfly.swarm.config.security.Flag;
 import org.wildfly.swarm.config.security.SecurityDomain;
 import org.wildfly.swarm.config.security.security_domain.ClassicAuthentication;
@@ -25,7 +22,7 @@ import org.wildfly.swarm.spi.runtime.annotations.Post;
  * @author Ken Finnigan
  */
 @Post
-@Singleton
+@ApplicationScoped
 public class DroolsSetup implements Customizer {
 
     private static String configFolder = System.getProperty("org.drools.server.swarm.security.conf");
@@ -35,22 +32,18 @@ public class DroolsSetup implements Customizer {
     Instance<SecurityFraction> security;
 
     @Override
-    public void customize() {
+    public void customize() throws Exception {
         if (System.getProperty("org.drools.server.swarm.security.conf") == null) {
-            try {
-                //Path dir = Files.createTempDirectory("swarm-keycloak-config");
-                File dir = TempFileManager.INSTANCE.newTempDirectory("swarm-drools-security-config", ".d");
-                System.setProperty("org.drools.server.swarm.conf", dir.getAbsolutePath());
-                Files.copy(getClass().getClassLoader().getResourceAsStream("config/security/application-users.properties"),
-                           dir.toPath().resolve("application-users.properties"),
-                           StandardCopyOption.REPLACE_EXISTING);
-                Files.copy(getClass().getClassLoader().getResourceAsStream("config/security/application-roles.properties"),
-                           dir.toPath().resolve("application-roles.properties"),
-                           StandardCopyOption.REPLACE_EXISTING);
-                configFolder = dir.toPath().toString();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            //Path dir = Files.createTempDirectory("swarm-keycloak-config");
+            File dir = TempFileManager.INSTANCE.newTempDirectory("swarm-drools-security-config", ".d");
+            System.setProperty("org.drools.server.swarm.conf", dir.getAbsolutePath());
+            Files.copy(getClass().getClassLoader().getResourceAsStream("config/security/application-users.properties"),
+                    dir.toPath().resolve("application-users.properties"),
+                    StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(getClass().getClassLoader().getResourceAsStream("config/security/application-roles.properties"),
+                    dir.toPath().resolve("application-roles.properties"),
+                    StandardCopyOption.REPLACE_EXISTING);
+            configFolder = dir.toPath().toString();
         }
 
 
@@ -63,7 +56,7 @@ public class DroolsSetup implements Customizer {
         if (!this.security.isUnsatisfied()) {
             SecurityDomain<?> security = new SecurityDomain<>("other-drools")
                     .classicAuthentication(new ClassicAuthentication<>()
-                                                   .loginModule(loginModule));
+                            .loginModule(loginModule));
             this.security.get().securityDomain(security);
         }
 

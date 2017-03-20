@@ -15,7 +15,7 @@
  */
 package org.wildfly.swarm.topology.runtime;
 
-import javax.inject.Singleton;
+import javax.enterprise.context.ApplicationScoped;
 
 import org.jboss.as.naming.ImmediateManagedReferenceFactory;
 import org.jboss.as.naming.ServiceBasedNamingStore;
@@ -34,17 +34,18 @@ import org.wildfly.swarm.topology.Topology;
 /**
  * @author Bob McWhirter
  */
-@Singleton
+@ApplicationScoped
 public class TopologyManagerActivator implements ServiceActivator {
 
     public static final ServiceName SERVICE_NAME = ServiceName.of("swarm", "topology");
+
     public static final ServiceName CONNECTOR_SERVICE_NAME = ServiceName.of("swarm", "topology", "connector");
 
     @Override
     public void activate(ServiceActivatorContext context) throws ServiceRegistryException {
         ServiceTarget target = context.getServiceTarget();
 
-        TopologyManager.INSTANCE.setServiceTarget( target );
+        TopologyManager.INSTANCE.setServiceTarget(target);
 
         target.addService(SERVICE_NAME, new ValueService<>(new ImmediateValue<>(TopologyManager.INSTANCE)))
                 .install();

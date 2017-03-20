@@ -15,21 +15,26 @@
  */
 package org.wildfly.swarm.management.runtime;
 
+import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 import javax.inject.Named;
-import javax.inject.Singleton;
 
+import org.wildfly.swarm.config.management.HTTPInterfaceManagementInterface;
 import org.wildfly.swarm.management.ManagementFraction;
 import org.wildfly.swarm.spi.api.Customizer;
+import org.wildfly.swarm.spi.api.Defaultable;
 import org.wildfly.swarm.spi.api.SocketBinding;
 import org.wildfly.swarm.spi.api.SocketBindingGroup;
+import org.wildfly.swarm.spi.api.annotations.Configurable;
 import org.wildfly.swarm.spi.runtime.annotations.Pre;
+
+import static org.wildfly.swarm.spi.api.Defaultable.string;
 
 /**
  * @author Bob McWhirter
  */
 @Pre
-@Singleton
+@ApplicationScoped
 public class ManagementSocketBindingsCustomizer implements Customizer {
 
     @Inject
@@ -40,9 +45,18 @@ public class ManagementSocketBindingsCustomizer implements Customizer {
     ManagementFraction fraction;
 
     public void customize() {
-        this.group.socketBinding(new SocketBinding("management-http")
-                .port(fraction.httpPort()));
+        this.group.socketBinding(
+                new SocketBinding("management-http")
+                        .iface(iface.get())
+                        .port(fraction.httpPort()));
         this.group.socketBinding(new SocketBinding("management-https")
                 .port(fraction.httpsPort()));
+
+        if (fraction.isHttpDisable()) {
+            fraction.httpInterfaceManagementInterface((HTTPInterfaceManagementInterface<?>) null);
+        }
     }
+
+    @Configurable("swarm.management.bind.interface")
+    private Defaultable<String> iface = string("management");
 }

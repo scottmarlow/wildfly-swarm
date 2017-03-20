@@ -2,8 +2,8 @@ package org.wildfly.swarm.jolokia.runtime;
 
 import java.util.function.Consumer;
 
+import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
-import javax.inject.Singleton;
 
 import org.jboss.shrinkwrap.api.Archive;
 import org.wildfly.swarm.jolokia.JolokiaFraction;
@@ -18,7 +18,7 @@ import org.wildfly.swarm.spi.runtime.annotations.Pre;
  * @author Bob McWhirter
  */
 @Pre
-@Singleton
+@ApplicationScoped
 public class JolokiaKeycloakCustomizer implements Customizer {
 
     @Inject
@@ -33,11 +33,11 @@ public class JolokiaKeycloakCustomizer implements Customizer {
 
     @Override
     public void customize() {
-        if ( this.role == null ) {
+        if (this.role == null) {
             return;
         }
 
-        Consumer<Archive> keycloakPreparer = (archive)->{
+        Consumer<Archive> keycloakPreparer = (archive) -> {
             archive.as(Secured.class)
                     .protect()
                     .withRole(this.role);
@@ -45,10 +45,10 @@ public class JolokiaKeycloakCustomizer implements Customizer {
 
         Consumer<Archive> preparer = this.jolokia.jolokiaWarPreparer();
 
-        if ( preparer == null ) {
+        if (preparer == null) {
             preparer = keycloakPreparer;
         } else {
-            preparer = preparer.andThen( keycloakPreparer );
+            preparer = preparer.andThen(keycloakPreparer);
         }
 
         this.jolokia.prepareJolokiaWar(preparer);

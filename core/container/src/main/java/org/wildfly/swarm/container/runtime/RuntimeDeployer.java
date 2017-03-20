@@ -29,20 +29,22 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 import javax.annotation.PreDestroy;
+import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.inject.Instance;
 import javax.inject.Inject;
-import javax.inject.Singleton;
 
 import org.jboss.as.controller.client.ModelControllerClient;
 import org.jboss.dmr.ModelNode;
 import org.jboss.jandex.Index;
 import org.jboss.jandex.Indexer;
-import org.jboss.logging.Logger;
 import org.jboss.shrinkwrap.api.Archive;
 import org.jboss.shrinkwrap.api.ArchivePath;
+import org.jboss.shrinkwrap.api.Filters;
+import org.jboss.shrinkwrap.api.GenericArchive;
 import org.jboss.shrinkwrap.api.Node;
 import org.jboss.shrinkwrap.api.ShrinkWrap;
 import org.jboss.shrinkwrap.api.exporter.ZipExporter;
+import org.jboss.shrinkwrap.api.importer.ExplodedImporter;
 import org.jboss.shrinkwrap.api.importer.ZipImporter;
 import org.jboss.shrinkwrap.api.spec.JavaArchive;
 import org.jboss.vfs.TempFileProvider;
@@ -50,11 +52,13 @@ import org.jboss.vfs.VFS;
 import org.jboss.vfs.VirtualFile;
 import org.wildfly.swarm.bootstrap.env.ApplicationEnvironment;
 import org.wildfly.swarm.bootstrap.logging.BootstrapLogger;
+import org.wildfly.swarm.bootstrap.performance.Performance;
 import org.wildfly.swarm.bootstrap.util.BootstrapProperties;
 import org.wildfly.swarm.container.DeploymentException;
 import org.wildfly.swarm.container.internal.Deployer;
 import org.wildfly.swarm.container.runtime.deployments.DefaultDeploymentCreator;
 import org.wildfly.swarm.container.runtime.wildfly.SimpleContentProvider;
+import org.wildfly.swarm.internal.DeployerMessages;
 import org.wildfly.swarm.internal.FileSystemLayout;
 import org.wildfly.swarm.internal.SwarmMessages;
 import org.wildfly.swarm.spi.api.ArchiveMetadataProcessor;
@@ -78,11 +82,12 @@ import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.RUN
 /**
  * @author Bob McWhirter
  * @author Heiko Braun
+ * @author Ken Finnigan
  */
-@Singleton
+@ApplicationScoped
 public class RuntimeDeployer implements Deployer {
 
-    private static Logger LOG = Logger.getLogger("org.wildfly.swarm.deployer");
+    //private static Logger LOG = Logger.getLogger("org.wildfly.swarm.deployer");
 
     private static final String ALL_DEPENDENCIES_ADDED_MARKER = DependenciesContainer.ALL_DEPENDENCIES_MARKER + ".added";
 
@@ -90,7 +95,7 @@ public class RuntimeDeployer implements Deployer {
     public void deploy() throws DeploymentException {
         Archive<?> deployment = createDefaultDeployment();
         if (deployment == null) {
-            throw SwarmMessages.MESSAGES.cannotCreateDefaultDeployment();
+            throw DeployerMessages.MESSAGES.unableToCreateDefaultDeployment();
         } else {
             deploy(deployment);
         }
@@ -99,17 +104,12 @@ public class RuntimeDeployer implements Deployer {
     @Override
     public void deploy(Collection<Path> pathsToDeploy) throws DeploymentException {
         if (pathsToDeploy.isEmpty()) {
-            LOG.warn(SwarmMessages.MESSAGES.noDeploymentsSpecified());
+            DeployerMessages.MESSAGES.noDeploymentsSpecified();
             return;
         }
         archives(pathsToDeploy)
                 .forEach(e -> {
-                    try {
-                        deploy(e);
-                    } catch (DeploymentException e1) {
-                        // TODO fix error-handling
-                        e1.printStackTrace();
-                    }
+                    deploy(e);
                 });
     }
 
@@ -165,130 +165,142 @@ public class RuntimeDeployer implements Deployer {
     @Override
     public void deploy(Archive<?> deployment) throws DeploymentException {
 
-        // check for "org.wildfly.swarm.allDependencies" flag
-        // see DependenciesContainer#addAllDependencies()
-        if (deployment instanceof DependenciesContainer) {
-            DependenciesContainer depContainer = (DependenciesContainer) deployment;
-            if (depContainer.hasMarker(DependenciesContainer.ALL_DEPENDENCIES_MARKER)) {
-                if (!depContainer.hasMarker(ALL_DEPENDENCIES_ADDED_MARKER)) {
-                    try {
+        try (AutoCloseable deploymentTimer = Performance.time("deployment: " + deployment.getName())) {
 
+            // check for "org.wildfly.swarm.allDependencies" flag
+            // see DependenciesContainer#addAllDependencies()
+            if (deployment instanceof DependenciesContainer) {
+                DependenciesContainer<?> depContainer = (DependenciesContainer) deployment;
+                if (depContainer.hasMarker(DependenciesContainer.ALL_DEPENDENCIES_MARKER)) {
+                    if (!depContainer.hasMarker(ALL_DEPENDENCIES_ADDED_MARKER)) {
                         ApplicationEnvironment appEnv = ApplicationEnvironment.get();
 
                         if (ApplicationEnvironment.Mode.UBERJAR == appEnv.getMode()) {
                             ArtifactLookup artifactLookup = ArtifactLookup.get();
                             for (String gav : appEnv.getDependencies()) {
-                                depContainer.addAsLibraries(artifactLookup.artifact(gav));
+                                depContainer.addAsLibrary(artifactLookup.artifact(gav));
                             }
                         } else {
-                            Set<String> paths = appEnv.resolveDependencies(Collections.EMPTY_LIST);
+                            Set<String> paths = appEnv.resolveDependencies(Collections.emptyList());
                             for (String path : paths) {
-                                depContainer.addAsLibraries(new File(path));
+                                final File pathFile = new File(path);
+                                if (path.endsWith(".jar")) {
+                                    depContainer.addAsLibrary(pathFile);
+                                } else if (pathFile.isDirectory()) {
+                                    depContainer
+                                            .merge(ShrinkWrap.create(GenericArchive.class)
+                                                            .as(ExplodedImporter.class)
+                                                            .importDirectory(pathFile)
+                                                            .as(GenericArchive.class),
+                                                    "/WEB-INF/classes",
+                                                    Filters.includeAll());
+                                }
                             }
                         }
 
-
                         depContainer.addMarker(ALL_DEPENDENCIES_ADDED_MARKER);
-                    } catch (Throwable t) {
-                        throw new RuntimeException("Failed to resolve archive dependencies", t);
                     }
                 }
             }
-        }
 
-        // 1. create a meta data index, but only if we have processors for it
-        if (!this.archiveMetadataProcessors.isUnsatisfied()) {
-            Indexer indexer = new Indexer();
-            Map<ArchivePath, Node> c = deployment.getContent();
-            try {
-                for (Map.Entry<ArchivePath, Node> each : c.entrySet()) {
-                    if (each.getKey().get().endsWith(CLASS_SUFFIX)) {
-                        indexer.index(each.getValue().getAsset().openStream());
+            // 1. create a meta data index, but only if we have processors for it
+            if (!this.archiveMetadataProcessors.isUnsatisfied()) {
+                Indexer indexer = new Indexer();
+                Map<ArchivePath, Node> c = deployment.getContent();
+                try {
+                    for (Map.Entry<ArchivePath, Node> each : c.entrySet()) {
+                        if (each.getKey().get().endsWith(CLASS_SUFFIX)) {
+                            indexer.index(each.getValue().getAsset().openStream());
+                        }
                     }
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
                 }
+
+                Index index = indexer.complete();
+
+                // 2.1 let fractions process the meta data
+                for (ArchiveMetadataProcessor processor : this.archiveMetadataProcessors) {
+                    processor.processArchive(deployment, index);
+                }
+            }
+
+            // 2. give fractions a chance to handle the deployment
+            for (ArchivePreparer preparer : this.archivePreparers) {
+                preparer.prepareArchive(deployment);
+            }
+
+            if (DeployerMessages.MESSAGES.isDebugEnabled()) {
+                DeployerMessages.MESSAGES.deploying(deployment.getName());
+                Map<ArchivePath, Node> ctx = deployment.getContent();
+                for (Map.Entry<ArchivePath, Node> each : ctx.entrySet()) {
+                    DeployerMessages.MESSAGES.deploymentContent(each.getKey().toString());
+                }
+            }
+
+            if (BootstrapProperties.flagIsSet(SwarmProperties.EXPORT_DEPLOYMENT)) {
+                final File out = new File(deployment.getName());
+                DeployerMessages.MESSAGES.exportingDeployment(out.getAbsolutePath());
+                deployment.as(ZipExporter.class).exportTo(out, true);
+            }
+
+            VirtualFile mountPoint = VFS.getRootVirtualFile().getChild(deployment.getName());
+
+            try (InputStream in = deployment.as(ZipExporter.class).exportAsInputStream()) {
+                Closeable closeable = VFS.mountZipExpanded(in, deployment.getName(), mountPoint, tempFileProvider);
+                this.mountPoints.add(closeable);
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw SwarmMessages.MESSAGES.failToMountDeployment(e, deployment);
             }
 
-            Index index = indexer.complete();
+            byte[] hash = this.contentProvider.addContent(mountPoint);
 
-            // 2.1 let fractions process the meta data
-            for (ArchiveMetadataProcessor processor : this.archiveMetadataProcessors) {
-                processor.processArchive(deployment, index);
+            final ModelNode deploymentAdd = new ModelNode();
+
+            deploymentAdd.get(OP).set(ADD);
+            deploymentAdd.get(OP_ADDR).set("deployment", deployment.getName());
+            deploymentAdd.get(RUNTIME_NAME).set(deployment.getName());
+            deploymentAdd.get(ENABLED).set(true);
+            deploymentAdd.get(PERSISTENT).set(true);
+
+            int deploymentTimeout = Integer.getInteger(SwarmProperties.DEPLOYMENT_TIMEOUT, 300);
+
+            final ModelNode opHeaders = new ModelNode();
+            opHeaders.get(BLOCKING_TIMEOUT).set(deploymentTimeout);
+            deploymentAdd.get(OPERATION_HEADERS).set(opHeaders);
+
+            ModelNode content = deploymentAdd.get(CONTENT).add();
+            content.get(HASH).set(hash);
+
+            BootstrapLogger.logger("org.wildfly.swarm.runtime.deployer")
+                    .info("deploying " + deployment.getName());
+            System.setProperty(SwarmInternalProperties.CURRENT_DEPLOYMENT, deployment.getName());
+            try {
+                ModelNode result = client.execute(deploymentAdd);
+
+                ModelNode outcome = result.get("outcome");
+
+                if (outcome.asString().equals("success")) {
+                    return;
+                }
+
+                ModelNode description = result.get("failure-description");
+                throw new DeploymentException(deployment, SwarmMessages.MESSAGES.deploymentFailed(description.asString()));
+            } catch (IOException e) {
+                throw SwarmMessages.MESSAGES.deploymentFailed(e, deployment);
             }
-        }
-
-        // 2. give fractions a chance to handle the deployment
-        for (ArchivePreparer preparer : this.archivePreparers) {
-            preparer.prepareArchive(deployment);
-        }
-
-        if (this.debug) {
-            Map<ArchivePath, Node> ctx = deployment.getContent();
-            for (Map.Entry<ArchivePath, Node> each : ctx.entrySet()) {
-                System.err.println(each.getKey() + " // " + each.getValue());
-            }
-        }
-
-        if (BootstrapProperties.flagIsSet(SwarmProperties.EXPORT_DEPLOYMENT)) {
-            final File out = new File(deployment.getName());
-            System.err.println("Exporting deployment to " + out.getAbsolutePath());
-            deployment.as(ZipExporter.class).exportTo(out, true);
-        }
-
-        VirtualFile mountPoint = VFS.getRootVirtualFile().getChild(deployment.getName());
-
-        try (InputStream in = deployment.as(ZipExporter.class).exportAsInputStream()) {
-            Closeable closeable = VFS.mountZipExpanded(in, deployment.getName(), mountPoint, tempFileProvider);
-            this.mountPoints.add(closeable);
-        } catch (IOException e) {
-            throw SwarmMessages.MESSAGES.failToMountDeployment(e, deployment);
-        }
-
-        byte[] hash = this.contentProvider.addContent(mountPoint);
-
-        final ModelNode deploymentAdd = new ModelNode();
-
-        deploymentAdd.get(OP).set(ADD);
-        deploymentAdd.get(OP_ADDR).set("deployment", deployment.getName());
-        deploymentAdd.get(RUNTIME_NAME).set(deployment.getName());
-        deploymentAdd.get(ENABLED).set(true);
-        deploymentAdd.get(PERSISTENT).set(true);
-
-        int deploymentTimeout = Integer.getInteger(SwarmProperties.DEPLOYMENT_TIMEOUT, 300);
-
-        final ModelNode opHeaders = new ModelNode();
-        opHeaders.get(BLOCKING_TIMEOUT).set(deploymentTimeout);
-        deploymentAdd.get(OPERATION_HEADERS).set(opHeaders);
-
-        ModelNode content = deploymentAdd.get(CONTENT).add();
-        content.get(HASH).set(hash);
-
-        BootstrapLogger.logger("org.wildfly.swarm.runtime.deployer")
-                .info("deploying " + deployment.getName());
-        System.setProperty(SwarmInternalProperties.CURRENT_DEPLOYMENT, deployment.getName());
-        try {
-            ModelNode result = client.execute(deploymentAdd);
-
-            ModelNode outcome = result.get("outcome");
-
-            if (outcome.asString().equals("success")) {
-                return;
-            }
-
-            ModelNode description = result.get("failure-description");
-            throw new DeploymentException(deployment, SwarmMessages.MESSAGES.deploymentFailed(description.asString()));
-        } catch (IOException e) {
-            throw SwarmMessages.MESSAGES.deploymentFailed(e, deployment);
+        } catch (Exception e) {
+            throw new DeploymentException(deployment, e);
         }
     }
 
+    @SuppressWarnings("unused")
     @PreDestroy
     void stop() {
         for (Closeable each : this.mountPoints) {
             try {
                 each.close();
-            } catch (IOException e) {
+            } catch (IOException ignored) {
             }
         }
 
@@ -298,25 +310,32 @@ public class RuntimeDeployer implements Deployer {
 
     private String defaultDeploymentType;
 
+    @SuppressWarnings("unused")
     @Inject
     private ModelControllerClient client;
 
+    @SuppressWarnings("unused")
     @Inject
     private SimpleContentProvider contentProvider;
 
+    @SuppressWarnings("unused")
     @Inject
     private TempFileProvider tempFileProvider;
 
+    @SuppressWarnings("unused")
     @Inject
     private DefaultDeploymentCreator defaultDeploymentCreator;
 
     private final List<Closeable> mountPoints = new ArrayList<>();
 
+    @SuppressWarnings("unused")
     private boolean debug = false;
 
+    @SuppressWarnings("unused")
     @Inject
     private Instance<ArchivePreparer> archivePreparers;
 
+    @SuppressWarnings("unused")
     @Inject
     private Instance<ArchiveMetadataProcessor> archiveMetadataProcessors;
 }

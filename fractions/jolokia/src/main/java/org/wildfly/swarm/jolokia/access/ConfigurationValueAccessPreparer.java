@@ -30,12 +30,12 @@ public class ConfigurationValueAccessPreparer extends AbstractJolokiaAccessPrepa
             } catch (MalformedURLException e) {
                 File file = new File(this.jolokiaAccessXml);
                 if (file.exists()) {
-                    url = file.toURL();
+                    url = file.toURI().toURL();
                 }
             }
 
-            if ( url != null ) {
-                return new UrlAsset( url );
+            if (url != null) {
+                return new UrlAsset(url);
             }
         } catch (MalformedURLException e) {
             // ignore;

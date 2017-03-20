@@ -59,7 +59,7 @@ public class InMemoryAuthentication {
                 byte[] hash = digest.digest(str.getBytes());
                 add(userName, hash);
             } catch (NoSuchAlgorithmException e) {
-                e.printStackTrace();
+                ManagementMessages.MESSAGES.unknownAlgorithm("MD5", e);
             }
         } else {
             this.plugin.property(userName + ".hash", (prop) -> {
@@ -89,10 +89,5 @@ public class InMemoryAuthentication {
     private final String realm;
 
     private final PlugInAuthentication plugin;
-
-    @FunctionalInterface
-    public interface Consumer {
-        void accept(InMemoryAuthentication authn);
-    }
 
 }

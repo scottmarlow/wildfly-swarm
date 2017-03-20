@@ -18,6 +18,7 @@ package org.wildfly.swarm.tools;
 import java.io.File;
 
 import org.wildfly.swarm.bootstrap.util.MavenArtifactDescriptor;
+import org.wildfly.swarm.fractions.FractionDescriptor;
 
 /**
  * @author Bob McWhirter
@@ -53,6 +54,14 @@ public class ArtifactSpec extends MavenArtifactDescriptor {
         }
     }
 
+    public FractionDescriptor toFractionDescriptor() {
+        return new FractionDescriptor(groupId(), artifactId(), version());
+    }
+
+    public static ArtifactSpec fromFractionDescriptor(FractionDescriptor descriptor) {
+        return fromMscGav(descriptor.toString());
+    }
+
     public String jarName() {
         String classifier = classifier();
         if (classifier != null &&
@@ -71,7 +80,7 @@ public class ArtifactSpec extends MavenArtifactDescriptor {
     }
 
     public boolean isResolved() {
-        return this.file!=null;
+        return this.file != null;
     }
 
     public String toString() {

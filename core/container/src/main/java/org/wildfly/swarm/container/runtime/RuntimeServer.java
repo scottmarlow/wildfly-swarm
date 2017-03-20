@@ -31,7 +31,6 @@ import javax.enterprise.inject.Any;
 import javax.enterprise.inject.Instance;
 import javax.enterprise.inject.Produces;
 import javax.inject.Inject;
-import javax.inject.Singleton;
 
 import org.jboss.as.controller.ModelController;
 import org.jboss.as.controller.client.ModelControllerClient;
@@ -49,7 +48,7 @@ import org.jboss.msc.service.StartException;
 import org.jboss.msc.service.ValueService;
 import org.jboss.msc.value.ImmediateValue;
 import org.jboss.shrinkwrap.api.Archive;
-import org.wildfly.swarm.bootstrap.logging.BootstrapLogger;
+import org.wildfly.swarm.bootstrap.performance.Performance;
 import org.wildfly.swarm.bootstrap.util.TempFileManager;
 import org.wildfly.swarm.container.internal.Deployer;
 import org.wildfly.swarm.container.internal.Server;
@@ -61,7 +60,6 @@ import org.wildfly.swarm.container.runtime.xmlconfig.BootstrapConfiguration;
 import org.wildfly.swarm.container.runtime.xmlconfig.BootstrapPersister;
 import org.wildfly.swarm.internal.SwarmMessages;
 import org.wildfly.swarm.spi.api.Customizer;
-import org.wildfly.swarm.spi.api.StageConfig;
 import org.wildfly.swarm.spi.api.UserSpaceExtensionFactory;
 import org.wildfly.swarm.spi.runtime.annotations.Post;
 import org.wildfly.swarm.spi.runtime.annotations.Pre;
@@ -70,7 +68,7 @@ import org.wildfly.swarm.spi.runtime.annotations.Pre;
  * @author Bob McWhirter
  * @author Ken Finnigan
  */
-@Singleton
+@ApplicationScoped
 public class RuntimeServer implements Server {
 
     @Inject
@@ -102,9 +100,6 @@ public class RuntimeServer implements Server {
     private Instance<RuntimeDeployer> deployer;
 
     @Inject
-    private StageConfig stageConfig;
-
-    @Inject
     @Any
     private Instance<UserSpaceExtensionFactory> userSpaceExtensionFactories;
 
@@ -115,10 +110,10 @@ public class RuntimeServer implements Server {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             if (container != null) {
                 try {
-                    LOG.info("Shutdown requested ...");
+                    SwarmMessages.MESSAGES.shutdownRequested();
                     stop();
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    throw new RuntimeException(e);
                 }
             }
         }));
@@ -138,7 +133,6 @@ public class RuntimeServer implements Server {
         File configurationFile;
         try {
             configurationFile = TempFileManager.INSTANCE.newTempFile("swarm-config-", ".xml");
-            LOG.debug("Temporarily storing configuration at: " + configurationFile.getAbsolutePath());
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -153,20 +147,30 @@ public class RuntimeServer implements Server {
             }
         });
 
-        for (Customizer each : this.preCustomizers) {
-            SwarmMessages.MESSAGES.callingPreCustomizer(each);
-            each.customize();
+        try (AutoCloseable handle = Performance.time("pre-customizers")) {
+            for (Customizer each : this.preCustomizers) {
+                SwarmMessages.MESSAGES.callingPreCustomizer(each);
+                each.customize();
+            }
         }
 
-        for (Customizer each : this.postCustomizers) {
-            SwarmMessages.MESSAGES.callingPostCustomizer(each);
-            each.customize();
+        try (AutoCloseable handle = Performance.time("post-customizers")) {
+            for (Customizer each : this.postCustomizers) {
+                SwarmMessages.MESSAGES.callingPostCustomizer(each);
+                each.customize();
+            }
         }
 
-        this.configurableManager.log();
-        this.configurableManager.close();
+        try (AutoCloseable handle = Performance.time("configurable-manager rescan")) {
+            this.configurableManager.rescan();
+            this.configurableManager.log();
+            this.configurableManager.close();
+        }
 
-        this.dmrMarshaller.marshal(bootstrapOperations);
+
+        try (AutoCloseable handle = Performance.time("marshall DMR")) {
+            this.dmrMarshaller.marshal(bootstrapOperations);
+        }
 
         SwarmMessages.MESSAGES.wildflyBootstrap(bootstrapOperations.toString());
 
@@ -176,31 +180,46 @@ public class RuntimeServer implements Server {
 
         this.serviceActivators.forEach(activators::add);
 
-        final ServiceContainer serviceContainer = this.container.start(bootstrapOperations, this.contentProvider, activators);
-        for (ServiceName serviceName : serviceContainer.getServiceNames()) {
-            ServiceController<?> serviceController = serviceContainer.getService(serviceName);
-            StartException exception = serviceController.getStartException();
-            if (exception != null) {
-                throw exception;
+        try (AutoCloseable wildflyStart = Performance.time("WildFly start")) {
+            ServiceContainer serviceContainer = null;
+            try (AutoCloseable startWildflyItself = Performance.time("Starting WildFly itself")) {
+                serviceContainer = this.container.start(bootstrapOperations, this.contentProvider, activators);
             }
+            try (AutoCloseable checkFailedServices = Performance.time("Checking for failed services")) {
+                for (ServiceName serviceName : serviceContainer.getServiceNames()) {
+                    ServiceController<?> serviceController = serviceContainer.getService(serviceName);
+                    StartException exception = serviceController.getStartException();
+                    if (exception != null) {
+                        throw exception;
+                    }
+                }
+            }
+
+            ModelController controller = (ModelController) serviceContainer.getService(Services.JBOSS_SERVER_CONTROLLER).getValue();
+            Executor executor = Executors.newSingleThreadExecutor();
+
+            try (AutoCloseable creatingControllerClient = Performance.time("Creating controller client")) {
+                this.client = controller.createClient(executor);
+            }
+
+            RuntimeDeployer deployer = this.deployer.get();
+
+            try (AutoCloseable installDeployer = Performance.time("Installing deployer")) {
+                serviceContainer.addService(ServiceName.of("swarm", "deployer"), new ValueService<>(new ImmediateValue<Deployer>(deployer))).install();
+            }
+
+            try (AutoCloseable configUserSpaceExt = Performance.time("Configure user-space extensions")) {
+                configureUserSpaceExtensions();
+            }
+
+            try (AutoCloseable deployments = Performance.time("Implicit Deployments")) {
+                for (Archive each : this.implicitDeployments) {
+                    deployer.deploy(each);
+                }
+            }
+
+            return deployer;
         }
-
-        ModelController controller = (ModelController) serviceContainer.getService(Services.JBOSS_SERVER_CONTROLLER).getValue();
-        Executor executor = Executors.newSingleThreadExecutor();
-
-        this.client = controller.createClient(executor);
-
-        RuntimeDeployer deployer = this.deployer.get();
-
-        serviceContainer.addService(ServiceName.of("swarm", "deployer"), new ValueService<>(new ImmediateValue<Deployer>(deployer))).install();
-
-        configureUserSpaceExtensions();
-
-        for (Archive each : this.implicitDeployments) {
-            deployer.deploy(each);
-        }
-
-        return deployer;
     }
 
     private void configureUserSpaceExtensions() {
@@ -228,7 +247,7 @@ public class RuntimeServer implements Server {
             ExecutorService executor = (ExecutorService) field.get(this.container);
             executor.awaitTermination(10, TimeUnit.SECONDS);
         } catch (NoSuchFieldException | IllegalAccessException | InterruptedException e) {
-            e.printStackTrace();
+            SwarmMessages.MESSAGES.errorWaitingForContainerShutdown(e);
         }
     }
 
@@ -240,6 +259,4 @@ public class RuntimeServer implements Server {
     private SelfContainedContainer container;
 
     private ModelControllerClient client;
-
-    private BootstrapLogger LOG = BootstrapLogger.logger("org.wildfly.swarm.runtime.server");
 }

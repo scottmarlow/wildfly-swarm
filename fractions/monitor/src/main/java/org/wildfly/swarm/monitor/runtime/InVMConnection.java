@@ -43,10 +43,13 @@ final class InVMConnection extends ServerConnection {
     private static Logger LOG = Logger.getLogger(InVMConnection.class);
 
     private final ByteBufferPool bufferPool;
+
     private final XnioWorker worker;
 
     private SSLSessionInfo sslSessionInfo;
+
     private XnioBufferPoolAdaptor poolAdaptor;
+
     private BufferingSinkConduit bufferSink;
 
     protected final List<CloseListener> closeListeners = new LinkedList<>();
@@ -60,9 +63,10 @@ final class InVMConnection extends ServerConnection {
         bufferSink.flushTo(sb);
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public Pool<ByteBuffer> getBufferPool() {
-        if(poolAdaptor == null) {
+        if (poolAdaptor == null) {
             poolAdaptor = new XnioBufferPoolAdaptor(getByteBufferPool());
         }
         return poolAdaptor;
@@ -187,18 +191,12 @@ final class InVMConnection extends ServerConnection {
                         new PooledAdaptor(bufferPool.allocate())
                 )
         );
-        sinkChannel.setCloseListener(new ChannelListener<ConduitStreamSinkChannel>() {
-            @Override
-            public void handleEvent(ConduitStreamSinkChannel conduitStreamSinkChannel) {
+        sinkChannel.setCloseListener(conduitStreamSinkChannel -> {
+            for (CloseListener l : closeListeners) {
                 try {
-                    for (CloseListener l : closeListeners) {
-                        try {
-                            l.closed(InVMConnection.this);
-                        } catch (Throwable e) {
-                            UndertowLogger.REQUEST_LOGGER.exceptionInvokingCloseListener(l, e);
-                        }
-                    }
-                } finally {
+                    l.closed(InVMConnection.this);
+                } catch (Throwable e) {
+                    UndertowLogger.REQUEST_LOGGER.exceptionInvokingCloseListener(l, e);
                 }
             }
         });

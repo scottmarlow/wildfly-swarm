@@ -15,7 +15,7 @@
  */
 package org.wildfly.swarm.datasources.runtime.drivers;
 
-import javax.inject.Singleton;
+import javax.enterprise.context.ApplicationScoped;
 
 import org.jboss.modules.ModuleIdentifier;
 import org.wildfly.swarm.config.datasources.DataSource;
@@ -27,7 +27,7 @@ import org.wildfly.swarm.datasources.runtime.DriverInfo;
  *
  * @author Bob McWhirter
  */
-@Singleton
+@ApplicationScoped
 public class OracleDriverInfo extends DriverInfo {
     public static final String DEFAULT_CONNECTION_URL = "jdbc:oracle:thin:@localhost:1521:test";
 
@@ -36,12 +36,12 @@ public class OracleDriverInfo extends DriverInfo {
     public static final String DEFAULT_PASSWORD = "tiger";
 
     public OracleDriverInfo() {
-        super("oracle", ModuleIdentifier.create("com.oracle.jdbc"), "oracle.jdbc.OracleDriver" );
+        super("oracle", ModuleIdentifier.create("com.oracle.jdbc"), "oracle.jdbc.OracleDriver");
     }
 
     @Override
     protected void configureDriver(JDBCDriver driver) {
-        driver.xaDatasourceClass("oracle.jdbc.xa.client.OracleXADataSource");
+        driver.driverXaDatasourceClassName("oracle.jdbc.xa.client.OracleXADataSource");
     }
 
     @Override

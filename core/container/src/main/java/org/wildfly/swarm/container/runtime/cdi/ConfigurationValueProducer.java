@@ -20,25 +20,24 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Optional;
 
+import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.context.Dependent;
 import javax.enterprise.inject.Produces;
 import javax.enterprise.inject.spi.InjectionPoint;
 import javax.inject.Inject;
-import javax.inject.Singleton;
 
-import org.wildfly.swarm.spi.api.StageConfig;
-import org.wildfly.swarm.spi.api.StageConfig.Resolver;
+import org.wildfly.swarm.spi.api.config.ConfigView;
+import org.wildfly.swarm.spi.api.config.Resolver;
 import org.wildfly.swarm.spi.runtime.annotations.ConfigurationValue;
 
 /**
  * @author Martin Kouba
  */
-@Singleton
+@ApplicationScoped
 public class ConfigurationValueProducer {
 
-
     @Inject
-    private StageConfig stageConfig;
+    private ConfigView configView;
 
     @Produces
     @ConfigurationValue("")
@@ -90,6 +89,7 @@ public class ConfigurationValueProducer {
         return resolve(injectionPoint, Double.class);
     }
 
+    @SuppressWarnings("unchecked")
     @ConfigurationValue("")
     @Dependent
     @Produces
@@ -107,6 +107,7 @@ public class ConfigurationValueProducer {
         return Optional.ofNullable(resolve(injectionPoint, valueType));
     }
 
+    @SuppressWarnings("unchecked")
     private <T> Class<T> unwrapType(Type type) {
         if (type instanceof ParameterizedType) {
             type = ((ParameterizedType) type).getRawType();
@@ -126,10 +127,10 @@ public class ConfigurationValueProducer {
 
     private Resolver<String> resolver(InjectionPoint injectionPoint) {
         String name = getName(injectionPoint);
-        if (name == null || name.isEmpty() || stageConfig == null) {
+        if (name == null || name.isEmpty() || this.configView == null) {
             return null;
         }
-        return stageConfig.resolve(getName(injectionPoint));
+        return this.configView.resolve(name);
     }
 
     private String getName(InjectionPoint injectionPoint) {
