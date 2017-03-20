@@ -31,8 +31,7 @@ public class Orient<T extends Orient<T>> extends HashMap
 	private Integer maxPartitionSize;
 	private Integer maxPoolSize;
 	private String module;
-	private String password;
-	private String userName;
+	private String securityDomain;
 
 	public Orient(java.lang.String key) {
 		super();
@@ -279,42 +278,22 @@ public class Orient<T extends Orient<T>> extends HashMap
 	}
 
 	/**
-	 * Database user password
+	 * Security domain name
 	 */
-	@ModelNodeBinding(detypedName = "password")
-	public String password() {
-		return this.password;
+	@ModelNodeBinding(detypedName = "security-domain")
+	public String securityDomain() {
+		return this.securityDomain;
 	}
 
 	/**
-	 * Database user password
+	 * Security domain name
 	 */
 	@SuppressWarnings("unchecked")
-	public T password(java.lang.String value) {
-		Object oldValue = this.password;
-		this.password = value;
+	public T securityDomain(java.lang.String value) {
+		Object oldValue = this.securityDomain;
+		this.securityDomain = value;
 		if (this.pcs != null)
-			this.pcs.firePropertyChange("password", oldValue, value);
-		return (T) this;
-	}
-
-	/**
-	 * Database user name
-	 */
-	@ModelNodeBinding(detypedName = "user-name")
-	public String userName() {
-		return this.userName;
-	}
-
-	/**
-	 * Database user name
-	 */
-	@SuppressWarnings("unchecked")
-	public T userName(java.lang.String value) {
-		Object oldValue = this.userName;
-		this.userName = value;
-		if (this.pcs != null)
-			this.pcs.firePropertyChange("userName", oldValue, value);
+			this.pcs.firePropertyChange("securityDomain", oldValue, value);
 		return (T) this;
 	}
 }
