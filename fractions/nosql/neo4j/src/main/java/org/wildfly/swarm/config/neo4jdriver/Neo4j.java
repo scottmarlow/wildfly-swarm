@@ -28,6 +28,7 @@ public class Neo4j<T extends Neo4j<T>> extends HashMap
 	private String id;
 	private String jndiName;
 	private String module;
+	private String securityDomain;
 	private String transaction;
 
 	public Neo4j(java.lang.String key) {
@@ -211,6 +212,26 @@ public class Neo4j<T extends Neo4j<T>> extends HashMap
 		this.module = value;
 		if (this.pcs != null)
 			this.pcs.firePropertyChange("module", oldValue, value);
+		return (T) this;
+	}
+
+	/**
+	 * Security domain name
+	 */
+	@ModelNodeBinding(detypedName = "security-domain")
+	public String securityDomain() {
+		return this.securityDomain;
+	}
+
+	/**
+	 * Security domain name
+	 */
+	@SuppressWarnings("unchecked")
+	public T securityDomain(java.lang.String value) {
+		Object oldValue = this.securityDomain;
+		this.securityDomain = value;
+		if (this.pcs != null)
+			this.pcs.firePropertyChange("securityDomain", oldValue, value);
 		return (T) this;
 	}
 
