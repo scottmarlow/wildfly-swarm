@@ -15,6 +15,7 @@
  */
 package org.wildfly.swarm.neo4j;
 
+import java.util.HashMap;
 import java.util.concurrent.TimeoutException;
 import javax.naming.InitialContext;
 import javax.inject.Inject;
@@ -31,6 +32,11 @@ import org.wildfly.swarm.arquillian.DefaultDeployment;
 import org.wildfly.swarm.spi.api.OutboundSocketBinding;
 import org.wildfly.swarm.config.neo4jdriver.Neo4j;
 import org.wildfly.swarm.config.neo4jdriver.neo4j.Host;
+import org.wildfly.swarm.config.security.Flag;
+import org.wildfly.swarm.config.security.SecurityDomain;
+import org.wildfly.swarm.config.security.security_domain.ClassicAuthentication;
+import org.wildfly.swarm.config.security.security_domain.authentication.LoginModule;
+import org.wildfly.swarm.security.SecurityFraction;
 
 import org.neo4j.driver.v1.Driver;
 
@@ -51,6 +57,25 @@ public class Neo4jArquillianTest {
                         new OutboundSocketBinding("neo4jtesthost")
                                 .remoteHost("localhost")
                                 .remotePort(9042))
+                .fraction(SecurityFraction.defaultSecurityFraction()
+                        .securityDomain(
+                                new SecurityDomain("neo4jRealm")
+                                        .classicAuthentication(
+                                                new ClassicAuthentication().loginModule(
+                                                        new LoginModule("ConfiguredIdentity").code("ConfiguredIdentity")
+                                                                .flag(Flag.REQUIRED)
+                                                                .moduleOptions(new HashMap<Object, Object>() {
+                                                                                   {
+                                                                                       put("principal", "devuser");
+                                                                                       put("username", "devuser");
+                                                                                       put("password", "changethis");
+                                                                                   }
+                                                                               }
+                                                                )
+                                                )
+                                        )
+                        )
+                )
                 .fraction(new Neo4jFraction()
                 .neo4j(new Neo4j("neo4jtestprofile")
                         .host(new Host("neo4jtesthost")
@@ -58,6 +83,7 @@ public class Neo4jArquillianTest {
                         )
                         .jndiName("java:jboss/neo4jdriver/test")
                         .id("neo4jtestprofile")
+                        .securityDomain("neo4jRealm")
                 )
         );
     }
