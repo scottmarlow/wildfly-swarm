@@ -15,6 +15,7 @@
  */
 package org.wildfly.swarm.orientdb;
 
+import java.util.HashMap;
 import java.util.concurrent.TimeoutException;
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -37,6 +38,11 @@ import org.wildfly.swarm.spi.api.JARArchive;
 import org.wildfly.swarm.spi.api.OutboundSocketBinding;
 import org.wildfly.swarm.config.orientdb.Orient;
 import org.wildfly.swarm.config.orientdb.orient.Host;
+import org.wildfly.swarm.config.security.Flag;
+import org.wildfly.swarm.config.security.SecurityDomain;
+import org.wildfly.swarm.config.security.security_domain.ClassicAuthentication;
+import org.wildfly.swarm.config.security.security_domain.authentication.LoginModule;
+import org.wildfly.swarm.security.SecurityFraction;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -56,6 +62,25 @@ public class OrientDBArquillianTest {
                         new OutboundSocketBinding("orienttesthost")
                                 .remoteHost("localhost")
                                 .remotePort(9042))
+                .fraction(SecurityFraction.defaultSecurityFraction()
+                        .securityDomain(
+                                new SecurityDomain("orientRealm")
+                                        .classicAuthentication(
+                                                new ClassicAuthentication().loginModule(
+                                                        new LoginModule("ConfiguredIdentity").code("ConfiguredIdentity")
+                                                                .flag(Flag.REQUIRED)
+                                                                .moduleOptions(new HashMap<Object, Object>() {
+                                                                                   {
+                                                                                       put("principal", "devuser");
+                                                                                       put("username", "devuser");
+                                                                                       put("password", "changethis");
+                                                                                   }
+                                                                               }
+                                                                )
+                                                )
+                                        )
+                        )
+                )
                 .fraction(new OrientDBFraction()
                 .orient(new Orient("orienttesttprofile")
                         .host(new Host("orienttesthost")
@@ -64,6 +89,7 @@ public class OrientDBArquillianTest {
                         .database("test")
                         .jndiName("java:jboss/orientdb/test")
                         .id("orienttesttprofile")
+                        .securityDomain("orientRealm")
                 )
         );
     }
