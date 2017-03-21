@@ -15,6 +15,7 @@
  */
 package org.wildfly.swarm.cassandra;
 
+import java.util.HashMap;
 import java.util.concurrent.TimeoutException;
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -36,6 +37,11 @@ import org.wildfly.swarm.arquillian.DefaultDeployment;
 import org.wildfly.swarm.spi.api.OutboundSocketBinding;
 import org.wildfly.swarm.config.cassandradriver.Cassandra;
 import org.wildfly.swarm.config.cassandradriver.cassandra.Host;
+import org.wildfly.swarm.config.security.Flag;
+import org.wildfly.swarm.config.security.SecurityDomain;
+import org.wildfly.swarm.config.security.security_domain.ClassicAuthentication;
+import org.wildfly.swarm.config.security.security_domain.authentication.LoginModule;
+import org.wildfly.swarm.security.SecurityFraction;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -55,6 +61,25 @@ public class CassandraArquillianTest {
                         new OutboundSocketBinding("casstesthost")
                                 .remoteHost("localhost")
                                 .remotePort(9042))
+                .fraction(SecurityFraction.defaultSecurityFraction()
+                        .securityDomain(
+                                new SecurityDomain("cassandraRealm")
+                                        .classicAuthentication(
+                                                new ClassicAuthentication().loginModule(
+                                                        new LoginModule("ConfiguredIdentity").code("ConfiguredIdentity")
+                                                                .flag(Flag.REQUIRED)
+                                                                .moduleOptions(new HashMap<Object, Object>() {
+                                                                                   {
+                                                                                       put("principal", "devuser");
+                                                                                       put("username", "devuser");
+                                                                                       put("password", "changethis");
+                                                                                   }
+                                                                               }
+                                                                )
+                                                )
+                                        )
+                        )
+                )
                 .fraction(new CassandraFraction()
                 .cassandra(new Cassandra("cassandratestprofile")
                         .host(new Host("casstesthost")
@@ -62,6 +87,8 @@ public class CassandraArquillianTest {
                         )
                         .jndiName("java:jboss/cassandradriver/test")
                         .id("cassandratestprofile")
+                        .securityDomain("cassandraRealm")
+
                 )
         );
     }
