@@ -52,7 +52,7 @@ public class MongoDBArquillianTest {
 
     @CreateSwarm
     public static Swarm newSwarm() throws Exception {
-        return new Swarm(true)
+        return new Swarm(false)
 
                 .outboundSocketBinding("standard-sockets",
                         new OutboundSocketBinding("mongotesthost")
