@@ -112,6 +112,10 @@
         <artifactId>mongo-java-driver</artifactId>
         <version>${version.mongodb.driver}</version>
     </dependency>
+    <dependency>
+        <groupId>org.wildfly.swarm</groupId>
+        <artifactId>mongo-config-api</artifactId>
+     </dependency>
     <!-- Provided APIs -->
   
   </dependencies>
