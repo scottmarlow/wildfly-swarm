@@ -112,6 +112,10 @@
         <artifactId>cassandra-driver-core</artifactId>
         <version>${version.cassandra.driver}</version>
     </dependency>
+     <dependency>
+        <groupId>org.wildfly.swarm</groupId>
+        <artifactId>cassandra-config-api</artifactId>
+     </dependency>
     <!-- Provided APIs -->
   
   </dependencies>
