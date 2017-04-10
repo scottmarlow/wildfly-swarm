@@ -86,6 +86,12 @@ public class MongoDBArquillianTest {
                                 .jndiName("java:jboss/mongodb/test")
                                 .id("mongodbtestprofile")
                                 .securityDomain("mongoRealm")
+                                // .authType(Mongo.AuthType.GSSAPI)
+                                // .authType(Mongo.AuthType.PLAIN_SASL)
+                                // .authType(Mongo.AuthType.SCRAM_SHA_1)
+                                // .authType(Mongo.AuthType.MONGODB_CR)
+                                // .authType(Mongo.AuthType.MONGODB_X509)
+                                .authType(Mongo.AuthType.DEFAULT)
 
                         )
                 );
