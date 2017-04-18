@@ -18,6 +18,7 @@ package org.wildfly.swarm.mongodb;
 import java.util.HashMap;
 import java.util.concurrent.TimeoutException;
 
+import javax.ejb.EJB;
 import javax.inject.Inject;
 import javax.inject.Named;
 import javax.naming.InitialContext;
@@ -94,7 +95,8 @@ public class MongoDBArquillianTest {
                                 .authType(Mongo.AuthType.DEFAULT)
 
                         )
-                );
+                ).fraction(new org.wildfly.swarm.ee.EEFraction())
+                ;
     }
 
     @Test
@@ -120,4 +122,15 @@ public class MongoDBArquillianTest {
         assertNotNull(database);
     }
 
+    @EJB(lookup = "java:global/MongoDBArquillianTest/StatefulTestBean")
+        private StatefulTestBean statefulTestBean;
+
+    @Test
+    public void beanTest() throws Exception {
+        assertNotNull(statefulTestBean);
+        String comment = statefulTestBean.addUserComment();
+        assertTrue(comment + " contains \"MongoDB Is Web Scale\"", comment.contains("MongoDB Is Web Scale"));
+        String product = statefulTestBean.addProduct();
+        assertTrue(product + " contains \"Acme products\"", product.contains("Acme products"));
+    }
 }
