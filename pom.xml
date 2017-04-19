@@ -1669,6 +1669,10 @@
         <module>testsuite/testsuite-messaging</module>
         <module>testsuite/testsuite-messaging-remote</module>
         <module>testsuite/testsuite-mod_cluster</module>
+        <module>testsuite/testsuite-mongodb</module>
+        <module>testsuite/testsuite-orientdb</module>
+        <module>testsuite/testsuite-cassandra</module>
+        <module>testsuite/testsuite-neo4j</module>
         <module>testsuite/testsuite-resource-adapters</module>
         <module>testsuite/testsuite-ribbon</module>
         <module>testsuite/testsuite-ribbon-secured</module>
