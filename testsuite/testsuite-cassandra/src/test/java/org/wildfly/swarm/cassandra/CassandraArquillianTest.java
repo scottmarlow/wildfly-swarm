@@ -17,11 +17,13 @@ package org.wildfly.swarm.cassandra;
 
 import java.util.HashMap;
 import java.util.concurrent.TimeoutException;
+import javax.ejb.EJB;
 import javax.inject.Inject;
 import javax.inject.Named;
 import javax.naming.InitialContext;
 
 import com.datastax.driver.core.Cluster;
+import com.datastax.driver.core.Row;
 import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.junit.Arquillian;
 import org.jboss.arquillian.test.api.ArquillianResource;
@@ -43,6 +45,7 @@ import org.wildfly.swarm.config.security.security_domain.ClassicAuthentication;
 import org.wildfly.swarm.config.security.security_domain.authentication.LoginModule;
 import org.wildfly.swarm.security.SecurityFraction;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -113,6 +116,27 @@ public class CassandraArquillianTest {
     @Test
     public void injectDatabaseConnection() throws Exception {
        assertNotNull(connection);
+    }
+
+    @EJB(lookup = "java:global/CassandraArquillianTest/StatefulTestBean")
+        private StatefulTestBean statefulTestBean;
+
+    @Test
+    public void testSimpleCreateAndLoadEntities() throws Exception {
+        Row row = statefulTestBean.query();
+        String lastName = row.getString("lastname");
+        assertEquals(lastName,"Smith");
+        int age = row.getInt("age");
+        assertEquals(age,36);
+    }
+
+    @Test
+    public void testAsyncQuery() throws Exception {
+        Row row = statefulTestBean.asyncQuery();
+        String lastName = row.getString("lastname");
+        assertEquals(lastName,"Smith");
+        int age = row.getInt("age");
+        assertEquals(age,36);
     }
 
 }
