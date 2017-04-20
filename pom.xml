@@ -1477,7 +1477,10 @@
     <module>fractions/microprofile</module>
     <module>fractions/monitor</module>
     <module>fractions/netflix</module>
-    <module>fractions/nosql</module>
+    <module>fractions/nosql/cassandra</module>
+    <module>fractions/nosql/mongodb</module>
+    <module>fractions/nosql/neo4j</module>
+    <module>fractions/nosql/orientdb</module>
     <module>fractions/topology</module>
     <module>fractions/topology-openshift</module>
     <module>fractions/topology-webapp</module>
