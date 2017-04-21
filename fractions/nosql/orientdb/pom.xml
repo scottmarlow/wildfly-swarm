@@ -23,7 +23,6 @@
   <properties>
     <swarm.fraction.stability>experimental</swarm.fraction.stability>
     <swarm.fraction.tags>NoSQL,OrientDB,Data</swarm.fraction.tags>
-    <version.com.orientechnologies>2.1.20</version.com.orientechnologies>
   </properties>
 
   <build>
@@ -97,11 +96,6 @@
       <dependency>
         <groupId>com.orientechnologies</groupId>
         <artifactId>orientdb-client</artifactId>
-      </dependency>
-
-      <dependency>
-        <groupId>com.orientechnologies</groupId>
-        <artifactId>orientdb-enterprise</artifactId>
       </dependency>
 
       <dependency>
