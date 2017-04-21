@@ -17,11 +17,16 @@ package org.wildfly.swarm.orientdb;
 
 import java.util.HashMap;
 import java.util.concurrent.TimeoutException;
+import javax.ejb.EJB;
 import javax.inject.Inject;
 import javax.inject.Named;
 import javax.naming.InitialContext;
 
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool;
+import com.orientechnologies.orient.core.record.impl.ODocument;
+import com.tinkerpop.blueprints.Direction;
+import com.tinkerpop.blueprints.Edge;
+import com.tinkerpop.blueprints.impls.orient.OrientEdge;
 import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.junit.Arquillian;
 import org.jboss.arquillian.test.api.ArquillianResource;
@@ -44,15 +49,20 @@ import org.wildfly.swarm.config.security.security_domain.ClassicAuthentication;
 import org.wildfly.swarm.config.security.security_domain.authentication.LoginModule;
 import org.wildfly.swarm.security.SecurityFraction;
 
+import java.time.LocalTime;
+import java.util.List;
+
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+
 
 /**
  * @author Scott Marlow
  */
 @RunWith(Arquillian.class)
 @DefaultDeployment
-public class OrientDBArquillianTest {
+public class OrientDBArquillianTest extends AbstractTestCase {
 
     @CreateSwarm
     public static Swarm newSwarm() throws Exception {
@@ -61,7 +71,9 @@ public class OrientDBArquillianTest {
                 .outboundSocketBinding("standard-sockets",
                         new OutboundSocketBinding("orienttesthost")
                                 .remoteHost("localhost")
-                                .remotePort(9042))
+                                .remotePort(2424)
+                                //  .remotePort(9042)
+                                )
                 .fraction(SecurityFraction.defaultSecurityFraction()
                         .securityDomain(
                                 new SecurityDomain("orientRealm")
@@ -71,9 +83,9 @@ public class OrientDBArquillianTest {
                                                                 .flag(Flag.REQUIRED)
                                                                 .moduleOptions(new HashMap<Object, Object>() {
                                                                                    {
-                                                                                       put("principal", "devuser");
-                                                                                       put("username", "devuser");
-                                                                                       put("password", "changethis");
+                                                                                       put("principal", "admin");
+                                                                                       put("username", "admin");
+                                                                                       put("password", "admin");
                                                                                    }
                                                                                }
                                                                 )
@@ -115,6 +127,34 @@ public class OrientDBArquillianTest {
     @Test
     public void injectDatabaseConnection() throws Exception {
        assertNotNull(databasePool);
+    }
+
+    @EJB(lookup = "java:global/OrientDBArquillianTest/StatefulTestBean")
+        private StatefulTestBean statefulTestBean;
+
+    @Test
+    public void shouldAddAPersonToTheDatabase() {
+        String name = "test-name-" + LocalTime.now();
+        ODocument person = statefulTestBean.addPerson(name);
+        assertEquals(name, person.field("name"));
+
+        List<ODocument> people = statefulTestBean.getPeople();
+        assertEquals(1, people.size());
+        assertEquals(person, people.get(0));
+    }
+
+    @Test
+    public void shouldAddAFriendshipToTheGraph() {
+        String firstName = "test-name-" + LocalTime.now();
+        String secondName = "test-name-" + LocalTime.now();
+        OrientEdge edge = statefulTestBean.addFriend(firstName, secondName);
+        assertEquals(firstName, edge.getVertex(Direction.OUT).getProperty("name"));
+        assertEquals(secondName, edge.getVertex(Direction.IN).getProperty("name"));
+        assertEquals("knows", edge.getLabel());
+
+        List<Edge> edges = statefulTestBean.getFriends();
+        assertEquals(1, edges.size());
+        assertEquals(edge, edges.get(0));
     }
 
 }
