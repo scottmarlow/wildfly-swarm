@@ -15,6 +15,7 @@
  */
 package org.wildfly.swarm.neo4j;
 
+import javax.ejb.EJB;
 import java.util.HashMap;
 import java.util.concurrent.TimeoutException;
 import javax.naming.InitialContext;
@@ -40,7 +41,9 @@ import org.wildfly.swarm.security.SecurityFraction;
 
 import org.neo4j.driver.v1.Driver;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
 
 /**
  * @author Scott Marlow
@@ -56,7 +59,7 @@ public class Neo4jArquillianTest {
                 .outboundSocketBinding("standard-sockets",
                         new OutboundSocketBinding("neo4jtesthost")
                                 .remoteHost("localhost")
-                                .remotePort(9042))
+                                .remotePort(7687))
                 .fraction(SecurityFraction.defaultSecurityFraction()
                         .securityDomain(
                                 new SecurityDomain("neo4jRealm")
@@ -84,6 +87,7 @@ public class Neo4jArquillianTest {
                         .jndiName("java:jboss/neo4jdriver/test")
                         .id("neo4jtestprofile")
                         .securityDomain("neo4jRealm")
+                        .transaction("1pc")
                 )
         );
     }
@@ -109,6 +113,51 @@ public class Neo4jArquillianTest {
     @Test
     public void injectDatabaseConnection() throws Exception {
         assertNotNull(database);
+    }
+
+    @EJB(lookup = "java:global/Neo4jArquillianTest/StatefulTestBean")
+        private StatefulTestBean statefulTestBean;
+
+    @Test
+    public void testSimpleCreateAndLoadEntities() throws Exception {
+        String result = statefulTestBean.addPerson();
+        assertEquals("Record<{name: \"Arthur\", title: \"King\"}>", result);
+    }
+
+    @Test
+    public void testInjectedClassInstance() throws Exception {
+        String result = statefulTestBean.addPersonClassInstanceInjection();
+        assertEquals("Record<{name: \"CDI\", title: \"King\"}>", result);
+    }
+
+    /**
+     * Verify that calling a session bean method that starts a JTA transaction, adds a database value and then calls nested bean method that
+     * requires a new transaction, the nested bean method should not be able to read the database value as the controlling JTA transaction did
+     * not get committed yet.
+     */
+    @Test
+    public void testTransactionEnlistmentReadAfterTransactionClose() throws Exception {
+        String result = statefulTestBean.transactionEnlistmentReadAfterCallingTransactionClose();
+        if (result.equals("Record<{name: \"TRANSACTION\", title: \"King\"}>")) {
+            fail("Should not be able to read 'TRANSACTION' value from database as the JTA transaction did not end yet.");
+        }
+        else if (result.equals("TRANSACTION not found")) {
+            // success!
+            // we expect that the database add of "TRANSACTION" will not occur yet, since the JTA transaction has
+            // not ended when we attempt to read the "TRANSACTION" value.  "TRANSACTION not found" is the expected response.
+        }
+        else {
+            fail("unexpected result = " + result);
+        }
+    }
+
+    @EJB(lookup = "java:global/Neo4jArquillianTest/BMTStatefulTestBean")
+        private BMTStatefulTestBean bmtStatefulTestBean;
+
+    @Test
+    public void testBMT() throws Exception {
+        String result = bmtStatefulTestBean.twoTransactions();
+        assertEquals(result,"Record<{name: \"BMT\", title: \"King\"}>");
     }
 
 }
