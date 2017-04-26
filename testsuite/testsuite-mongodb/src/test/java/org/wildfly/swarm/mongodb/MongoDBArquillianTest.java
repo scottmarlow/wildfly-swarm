@@ -93,6 +93,7 @@ public class MongoDBArquillianTest {
                                 // .authType(Mongo.AuthType.MONGODB_CR)
                                 // .authType(Mongo.AuthType.MONGODB_X509)
                                 .authType(Mongo.AuthType.DEFAULT)
+                                .ssl(false)
 
                         )
                 ).fraction(new org.wildfly.swarm.ee.EEFraction())
