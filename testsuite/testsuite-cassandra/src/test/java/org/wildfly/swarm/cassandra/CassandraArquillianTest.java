@@ -91,6 +91,7 @@ public class CassandraArquillianTest {
                         .jndiName("java:jboss/cassandradriver/test")
                         .id("cassandratestprofile")
                         .securityDomain("cassandraRealm")
+                        .ssl(false)
 
                 )
         );
