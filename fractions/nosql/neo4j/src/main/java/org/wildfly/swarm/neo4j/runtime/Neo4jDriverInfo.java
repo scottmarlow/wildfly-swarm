@@ -1,28 +1,21 @@
 /*
- *
- *  * JBoss, Home of Professional Open Source.
- *  * Copyright 2017, Red Hat, Inc., and individual contributors
- *  * as indicated by the @author tags. See the copyright.txt file in the
- *  * distribution for a full listing of individual contributors.
+ * *
+ *  * Copyright 2017 Red Hat, Inc, and individual contributors.
  *  *
- *  * This is free software; you can redistribute it and/or modify it
- *  * under the terms of the GNU Lesser General Public License as
- *  * published by the Free Software Foundation; either version 2.1 of
- *  * the License, or (at your option) any later version.
+ *  * Licensed under the Apache License, Version 2.0 (the "License");
+ *  * you may not use this file except in compliance with the License.
+ *  * You may obtain a copy of the License at
  *  *
- *  * This software is distributed in the hope that it will be useful,
- *  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- *  * Lesser General Public License for more details.
+ *  * http://www.apache.org/licenses/LICENSE-2.0
  *  *
- *  * You should have received a copy of the GNU Lesser General Public
- *  * License along with this software; if not, write to the Free
- *  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- *  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
- *
+ *  * Unless required by applicable law or agreed to in writing, software
+ *  * distributed under the License is distributed on an "AS IS" BASIS,
+ *  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  * See the License for the specific language governing permissions and
+ *  * limitations under the License.
  *
  */
-package org.wildfly.swarm.mongodb.runtime;
+package org.wildfly.swarm.neo4j.runtime;
 
 import java.io.File;
 import java.io.IOException;
@@ -33,6 +26,8 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.jar.JarFile;
 
+import javax.enterprise.context.ApplicationScoped;
+
 import org.jboss.modules.DependencySpec;
 import org.jboss.modules.Module;
 import org.jboss.modules.ModuleIdentifier;
@@ -41,51 +36,47 @@ import org.jboss.modules.ModuleSpec;
 import org.jboss.modules.ResourceLoaderSpec;
 import org.jboss.modules.ResourceLoaders;
 import org.wildfly.swarm.bootstrap.modules.DynamicModuleFinder;
-import org.wildfly.swarm.mongodb.MongoDBFraction;
+import org.wildfly.swarm.neo4j.Neo4jFraction;
 
 /**
- * Auto-detection and default DS information for detectable JDBC drivers.
+ * Auto-detection for Neo4j NoSQL driver (based on org.wildfly.swarm.datasources.runtime.DriverInfo, thanks Bob!).
  *
- * <p>For each detectable JDBC driver, a subclass should be created.</p>
- *
- * <p>Each subclass should be marked as a {@link javax.inject.Singleton}, due
+ * <p>mark as a {@link javax.inject.Singleton}, due
  * to the fact that state is retained as to if the driver has or has not
  * been detected.</p>
+ * TODO: come up with a test case that would cause the driver to attempt to be detected more than once.
+ *
+ * @author Scott Marlow
+ *
+/**
+ * Auto-detection for Neo4j.
  *
  * @author Bob McWhirter
  */
-public abstract class DriverInfo {
-
-    private final String name;
-
-    private final ModuleIdentifier moduleIdentifier;
-
-    private final String detectableClassName;
-
-    private final String[] optionalClassNames;
-
-    private boolean installed;
-
-    protected DriverInfo(String name,
-                         ModuleIdentifier moduleIdentifier,
-                         String detectableClassName,
-                         String... optionalClassNames) {
-        this.name = name;
-        this.moduleIdentifier = moduleIdentifier;
-        this.detectableClassName = detectableClassName;
-        this.optionalClassNames = optionalClassNames;
-    }
+@ApplicationScoped
+public class Neo4jDriverInfo {
 
     private static final String FILE_PREFIX = "file:";
-
     private static final String JAR_FILE_PREFIX = "jar:file:";
+    private final String name;
+    private final ModuleIdentifier moduleIdentifier;
+    private final String detectableClassName;
+    private final String[] optionalClassNames;
+    private boolean installed;
+
+    public Neo4jDriverInfo() {
+        this.name = "Neo4j";
+        this.moduleIdentifier = ModuleIdentifier.create("org.neo4j.driver");
+        this.detectableClassName = "org.neo4j.driver.v1.Driver";
+        this.optionalClassNames = new String[]{"org.neo4j.driver.v1.GraphDatabase", "org.wildfly.extension.nosql.cdi.Neo4jExtension", "org.neo4j.driver.v1.AuthTokens", "org.neo4j.driver.v1.AuthToken"};
+    }
 
     public String name() {
         return this.name;
     }
 
-    public boolean detect(MongoDBFraction fraction) {
-        if (fraction.subresources().mongo(this.name) != null) {
+    public boolean detect(Neo4jFraction fraction) {
+        if (fraction.subresources().neo4j(this.name) != null) { // TODO: verify this already installed check
             // already installed
             return true;
         }
@@ -215,16 +206,7 @@ public abstract class DriverInfo {
     }
 
     public String toString() {
-        return "[DriverInfo: detectable=" + this.detectableClassName + "]";
+        return "[NoSQLDriverInfo: detectable=" + this.detectableClassName + "]";
     }
-
-    @SuppressWarnings("unchecked")
-    public void installDatasource(MongoDBFraction fraction /*, String dsName, DataSourceConsumer config*/) {
-        //fraction.dataSource(dsName, (ds) -> {
-        //    ds.driverName(this.name);
-        //    this.configureDefaultDS(ds);
-        //    config.accept(ds);
-        //});
-    }
-
 }
+

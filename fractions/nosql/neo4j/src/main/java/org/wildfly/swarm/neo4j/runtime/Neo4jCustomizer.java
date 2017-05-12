@@ -16,29 +16,29 @@
  *
  */
 
-package org.wildfly.swarm.mongodb.runtime;
+package org.wildfly.swarm.neo4j.runtime;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.inject.Any;
 import javax.enterprise.inject.Instance;
 import javax.inject.Inject;
 
-import org.wildfly.swarm.mongodb.MongoDBFraction;
+import org.wildfly.swarm.neo4j.Neo4jFraction;
 import org.wildfly.swarm.spi.api.Customizer;
 import org.wildfly.swarm.spi.runtime.annotations.Pre;
 
 /**
- * MongoDBCustomizer
+ * Neo4jCustomizer
  *
  * @author Scott Marlow
  */
 @Pre
 @ApplicationScoped
-public class MongoDBCustomizer implements Customizer {
+public class Neo4jCustomizer implements Customizer {
 
     @Inject
     @Any
-    Instance<MongoDBFraction> allDrivers;
+    Instance<Neo4jFraction> allDrivers;
 
     @Override
     public void customize() throws Exception {
@@ -49,8 +49,8 @@ public class MongoDBCustomizer implements Customizer {
             this.allDrivers.forEach(this::attemptInstallation);
         }
 
-    protected void attemptInstallation(MongoDBFraction info) {
-        MongoDBDriverInfo mongoDBDriverInfo = new MongoDBDriverInfo();
+    protected void attemptInstallation(Neo4jFraction info) {
+        Neo4jDriverInfo mongoDBDriverInfo = new Neo4jDriverInfo();
         if (mongoDBDriverInfo.detect(info)) {
             //    DatasourcesMessages.MESSAGES.autodetectedJdbcDriver(info.name());
         }
