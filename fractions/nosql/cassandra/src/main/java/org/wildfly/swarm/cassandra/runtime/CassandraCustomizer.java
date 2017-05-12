@@ -16,29 +16,29 @@
  *
  */
 
-package org.wildfly.swarm.neo4j.runtime;
+package org.wildfly.swarm.cassandra.runtime;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.inject.Any;
 import javax.enterprise.inject.Instance;
 import javax.inject.Inject;
 
-import org.wildfly.swarm.neo4j.Neo4jFraction;
+import org.wildfly.swarm.cassandra.CassandraFraction;
 import org.wildfly.swarm.spi.api.Customizer;
 import org.wildfly.swarm.spi.runtime.annotations.Pre;
 
 /**
- * Neo4jCustomizer
+ * CassandraCustomizer
  *
  * @author Scott Marlow
  */
 @Pre
 @ApplicationScoped
-public class Neo4jCustomizer implements Customizer {
+public class CassandraCustomizer implements Customizer {
 
     @Inject
     @Any
-    Instance<Neo4jFraction> allDrivers;
+    Instance<CassandraFraction> allDrivers;
 
     @Override
     public void customize() throws Exception {
@@ -49,9 +49,9 @@ public class Neo4jCustomizer implements Customizer {
             this.allDrivers.forEach(this::attemptInstallation);
         }
 
-    protected void attemptInstallation(Neo4jFraction info) {
-        Neo4jDriverInfo neo4jDBDriverInfo = new Neo4jDriverInfo();
-        if (neo4jDBDriverInfo.detect(info)) {
+    protected void attemptInstallation(CassandraFraction info) {
+        CassandraDriverInfo mongoDBDriverInfo = new CassandraDriverInfo();
+        if (mongoDBDriverInfo.detect(info)) {
             //    DatasourcesMessages.MESSAGES.autodetectedJdbcDriver(info.name());
         }
     }
