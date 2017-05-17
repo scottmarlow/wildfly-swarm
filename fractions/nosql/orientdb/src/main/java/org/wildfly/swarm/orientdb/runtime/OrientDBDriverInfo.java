@@ -15,7 +15,7 @@
  *  * limitations under the License.
  *
  */
-package org.wildfly.swarm.cassandra.runtime;
+package org.wildfly.swarm.orientdb.runtime;
 
 import java.io.File;
 import java.io.IOException;
@@ -36,10 +36,10 @@ import org.jboss.modules.ModuleSpec;
 import org.jboss.modules.ResourceLoaderSpec;
 import org.jboss.modules.ResourceLoaders;
 import org.wildfly.swarm.bootstrap.modules.DynamicModuleFinder;
-import org.wildfly.swarm.cassandra.CassandraFraction;
+import org.wildfly.swarm.orientdb.OrientDBFraction;
 
 /**
- * Auto-detection for Cassandra NoSQL driver (based on org.wildfly.swarm.datasources.runtime.DriverInfo, thanks Bob!).
+ * Auto-detection for OrientDB NoSQL driver (based on org.wildfly.swarm.datasources.runtime.DriverInfo, thanks Bob!).
  *
  * <p>mark as a {@link javax.inject.Singleton}, due
  * to the fact that state is retained as to if the driver has or has not
@@ -49,7 +49,7 @@ import org.wildfly.swarm.cassandra.CassandraFraction;
  * @author Scott Marlow
  */
 @ApplicationScoped
-public class CassandraDriverInfo {
+public class OrientDBDriverInfo {
 
     private static final String FILE_PREFIX = "file:";
     private static final String JAR_FILE_PREFIX = "jar:file:";
@@ -59,23 +59,19 @@ public class CassandraDriverInfo {
     private final String[] optionalClassNames;
     private boolean installed;
 
-    public CassandraDriverInfo() {
-        this.name = "Cassandra";
-        this.moduleIdentifier = ModuleIdentifier.create("com.datastax.cassandra.driver-core");
-        this.detectableClassName = "com.datastax.driver.core.Cluster";
+    public OrientDBDriverInfo() {
+        this.name = "OrientDB";
+        this.moduleIdentifier = ModuleIdentifier.create("com.orientechnologies");
+        this.detectableClassName = "com.orientechnologies.orient.core.db.OPartitionedDatabasePool";
         this.optionalClassNames = new String[] {
-                "com.codahale.metrics.Metric",
-                "io.netty.buffer.PooledByteBufAllocator",
-                "io.netty.channel.group.ChannelGroup",
-                "io.netty.util.Timer",
-                "io.netty.handler.codec.MessageToMessageDecoder",
-                "io.netty.handler.timeout.IdleStateHandler",
-                "org.slf4j.impl.StaticLoggerBinder",
-                "org.slf4j.LoggerFactory",
-                "com.datastax.driver.core.Cluster",
-                "com.datastax.driver.core.Session",
-                "com.datastax.driver.core.Message",
-                "com.google.common.util.concurrent.AsyncFunction"
+                "com.google.common.util.concurrent.AsyncFunction",
+                "com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap",
+                "com.tinkerpop.blueprints.Graph",
+                "com.tinkerpop.blueprints.impls.orient.OrientVertex",
+                "com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx",
+                "com.orientechnologies.orient.client.remote.ORemoteConnectionPool",
+                "com.orientechnologies.orient.object.db.OObjectDatabaseTx",
+                "com.orientechnologies.orient.server.distributed.impl.task.OSyncClusterTask"
         };
     }
 
@@ -83,8 +79,8 @@ public class CassandraDriverInfo {
         return this.name;
     }
 
-    public boolean detect(CassandraFraction fraction) {
-        if (fraction.subresources().cassandra(this.name) != null) { // TODO: verify this already installed check
+    public boolean detect(OrientDBFraction fraction) {
+        if (fraction.subresources().orient(this.name) != null) { // TODO: verify this already installed check
             // already installed
             return true;
         }
