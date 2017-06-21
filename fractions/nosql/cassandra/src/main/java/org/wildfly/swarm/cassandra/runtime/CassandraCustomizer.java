@@ -50,9 +50,9 @@ public class CassandraCustomizer implements Customizer {
         }
 
     protected void attemptInstallation(CassandraFraction info) {
-        CassandraDriverInfo mongoDBDriverInfo = new CassandraDriverInfo();
-        if (mongoDBDriverInfo.detect(info)) {
-            Messages.MESSAGES.autodetectedDriver(mongoDBDriverInfo.name());
+        CassandraDriverInfo cassandraDriverInfo = new CassandraDriverInfo();
+        if (cassandraDriverInfo.detect(info)) {
+            Messages.MESSAGES.autodetectedDriver(cassandraDriverInfo.name());
         }
     }
 }

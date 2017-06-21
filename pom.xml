@@ -1563,11 +1563,6 @@
     <module>fractions/keycloak</module>
     <module>fractions/microprofile</module>
     <module>fractions/monitor</module>
-    <module>fractions/netflix</module>
-    <module>fractions/nosql/cassandra</module>
-    <module>fractions/nosql/mongodb</module>
-    <module>fractions/nosql/neo4j</module>
-    <module>fractions/nosql/orientdb</module>
     <module>fractions/topology</module>
     <module>fractions/topology-openshift</module>
     <module>fractions/topology-webapp</module>
@@ -1688,6 +1683,11 @@
         <module>fractions/netflix</module>
         <module>fractions/teiid</module>
 
+        <module>fractions/nosql/cassandra</module>
+        <module>fractions/nosql/mongodb</module>
+        <module>fractions/nosql/neo4j</module>
+        <module>fractions/nosql/orientdb</module>
+ 
         <module>fractions/cdi-extensions/cdi-jaxrsapi</module>
 
         <module>standalone-servers</module>

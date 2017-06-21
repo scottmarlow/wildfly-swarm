@@ -100,10 +100,6 @@ public class CassandraArquillianTest {
         );
     }
 
-    @Test
-    public void testNothing() throws InterruptedException, TimeoutException {
-    }
-
     @ArquillianResource
     InitialContext context;
 
