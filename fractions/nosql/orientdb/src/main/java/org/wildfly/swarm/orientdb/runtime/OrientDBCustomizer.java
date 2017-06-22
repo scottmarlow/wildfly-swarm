@@ -25,6 +25,7 @@ import javax.inject.Inject;
 
 import org.wildfly.swarm.orientdb.OrientDBFraction;
 import org.wildfly.swarm.spi.api.Customizer;
+import org.wildfly.swarm.container.util.Messages;
 import org.wildfly.swarm.spi.runtime.annotations.Pre;
 
 /**
