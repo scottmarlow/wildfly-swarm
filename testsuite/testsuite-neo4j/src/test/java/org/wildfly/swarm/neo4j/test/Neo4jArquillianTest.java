@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.wildfly.swarm.neo4j;
+package org.wildfly.swarm.neo4j.test;
 
 import javax.ejb.EJB;
 import java.util.HashMap;
@@ -27,8 +27,6 @@ import org.jboss.arquillian.test.api.ArquillianResource;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.wildfly.swarm.Swarm;
-import org.wildfly.swarm.management.ManagementFraction;
-import org.wildfly.swarm.arquillian.CreateSwarm;
 import org.wildfly.swarm.arquillian.DefaultDeployment;
 import org.wildfly.swarm.spi.api.OutboundSocketBinding;
 import org.wildfly.swarm.config.neo4jdriver.Neo4j;
@@ -51,47 +49,6 @@ import static org.junit.Assert.fail;
 @RunWith(Arquillian.class)
 @DefaultDeployment
 public class Neo4jArquillianTest {
-
-    @CreateSwarm
-    public static Swarm newSwarm() throws Exception {
-        return new Swarm(false)
-
-                .outboundSocketBinding("standard-sockets",
-                        new OutboundSocketBinding("neo4jtesthost")
-                                .remoteHost("localhost")
-                                .remotePort(7687))
-                .fraction(SecurityFraction.defaultSecurityFraction()
-                        .securityDomain(
-                                new SecurityDomain("neo4jRealm")
-                                        .classicAuthentication(
-                                                new ClassicAuthentication().loginModule(
-                                                        new LoginModule("ConfiguredIdentity").code("ConfiguredIdentity")
-                                                                .flag(Flag.REQUIRED)
-                                                                .moduleOptions(new HashMap<Object, Object>() {
-                                                                                   {
-                                                                                       put("principal", "devuser");
-                                                                                       put("username", "devuser");
-                                                                                       put("password", "changethis");
-                                                                                   }
-                                                                               }
-                                                                )
-                                                )
-                                        )
-                        )
-                )
-                .fraction(new Neo4jFraction()
-                .neo4j(new Neo4j("neo4jtestprofile")
-                        .host(new Host("neo4jtesthost")
-                            .outboundSocketBindingRef("neo4jtesthost")
-                        )
-                        .jndiName("java:jboss/neo4jdriver/test")
-                        .id("neo4jtestprofile")
-                        .module("org.neo4j.custom")
-                        .securityDomain("neo4jRealm")
-                        .transaction("1pc")
-                )
-        );
-    }
 
     @Test
     public void testNothing() throws InterruptedException, TimeoutException {

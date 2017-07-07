@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.wildfly.swarm.orientdb;
+package org.wildfly.swarm.orientdb.test;
 
 import java.util.HashMap;
 import java.util.concurrent.TimeoutException;
@@ -27,19 +27,12 @@ import com.orientechnologies.orient.core.record.impl.ODocument;
 import com.tinkerpop.blueprints.Direction;
 import com.tinkerpop.blueprints.Edge;
 import com.tinkerpop.blueprints.impls.orient.OrientEdge;
-import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.junit.Arquillian;
 import org.jboss.arquillian.test.api.ArquillianResource;
-import org.jboss.shrinkwrap.api.Archive;
-import org.jboss.shrinkwrap.api.ShrinkWrap;
-import org.jboss.shrinkwrap.api.asset.EmptyAsset;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.wildfly.swarm.Swarm;
-import org.wildfly.swarm.management.ManagementFraction;
-import org.wildfly.swarm.arquillian.CreateSwarm;
 import org.wildfly.swarm.arquillian.DefaultDeployment;
-import org.wildfly.swarm.spi.api.JARArchive;
 import org.wildfly.swarm.spi.api.OutboundSocketBinding;
 import org.wildfly.swarm.config.orientdb.Orient;
 import org.wildfly.swarm.config.orientdb.orient.Host;
@@ -63,49 +56,6 @@ import static org.junit.Assert.assertTrue;
 @RunWith(Arquillian.class)
 @DefaultDeployment
 public class OrientDBArquillianTest extends AbstractTestCase {
-
-    @CreateSwarm
-    public static Swarm newSwarm() throws Exception {
-        return new Swarm(false)
-
-                .outboundSocketBinding("standard-sockets",
-                        new OutboundSocketBinding("orienttesthost")
-                                .remoteHost("localhost")
-                                .remotePort(2424)
-                                //  .remotePort(9042)
-                                )
-                .fraction(SecurityFraction.defaultSecurityFraction()
-                        .securityDomain(
-                                new SecurityDomain("orientRealm")
-                                        .classicAuthentication(
-                                                new ClassicAuthentication().loginModule(
-                                                        new LoginModule("ConfiguredIdentity").code("ConfiguredIdentity")
-                                                                .flag(Flag.REQUIRED)
-                                                                .moduleOptions(new HashMap<Object, Object>() {
-                                                                                   {
-                                                                                       put("principal", "admin");
-                                                                                       put("username", "admin");
-                                                                                       put("password", "admin");
-                                                                                   }
-                                                                               }
-                                                                )
-                                                )
-                                        )
-                        )
-                )
-                .fraction(new OrientDBFraction()
-                .orient(new Orient("orienttesttprofile")
-                        .host(new Host("orienttesthost")
-                            .outboundSocketBindingRef("orienttesthost")
-                        )
-                        .database("test")
-                        .jndiName("java:jboss/orientdb/test")
-                        .id("orienttesttprofile")
-                        .module("org.orientdb.custom")
-                        .securityDomain("orientRealm")
-                )
-        );
-    }
 
     @Test
     public void testNothing() throws InterruptedException, TimeoutException {

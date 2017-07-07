@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.wildfly.swarm.orientdb;
+package org.wildfly.swarm.orientdb.test;
 
 import com.orientechnologies.orient.core.db.OPartitionedDatabasePool;
 import com.orientechnologies.orient.core.record.impl.ODocument;

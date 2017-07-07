@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 
-package org.wildfly.swarm.mongodb;
+package org.wildfly.swarm.mongodb.test;
 
+import javax.inject.Inject;
+import javax.inject.Named;
 import javax.annotation.Resource;
 import javax.ejb.Stateful;
 import javax.json.Json;
@@ -35,8 +37,12 @@ import org.bson.Document;
 @Stateful
 public class StatefulTestBean {
 
-    @Resource(lookup = "java:jboss/mongodb/test")
+    //@Resource(lookup = "java:jboss/mongodb/test")
+    @Inject @Named("mongodbtestprofile")
     MongoDatabase database;
+
+    @Resource(lookup = "java:jboss/mongodb/test")
+    MongoDatabase databaseJNDI;
 
     public String addUserComment() {
         MongoCollection collection = null;

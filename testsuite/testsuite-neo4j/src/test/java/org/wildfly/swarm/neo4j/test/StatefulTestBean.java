@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.wildfly.swarm.neo4j;
+package org.wildfly.swarm.neo4j.test;
 
 import static org.junit.Assert.fail;
 

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.wildfly.swarm.cassandra;
+package org.wildfly.swarm.cassandra.test;
 
 import javax.annotation.Resource;
 import javax.ejb.Stateful;
