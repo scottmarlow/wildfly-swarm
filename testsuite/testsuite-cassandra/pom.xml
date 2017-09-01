@@ -65,4 +65,62 @@
     </dependency>
   </dependencies>
 
+  <profiles>
+    <profile>
+      <id>docker</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>io.fabric8</groupId>
+            <artifactId>docker-maven-plugin</artifactId>
+            <version>0.22.1</version>
+            <configuration>
+              <images>
+                <image>
+                  <name>cassandra:3.0</name>
+                  <run>
+                    <ports>
+                      <port>9042:9042</port>
+                    </ports>
+                    <wait>
+                        <time>50000</time>
+                        <tcp>
+                            <ports>
+                                <port>9042</port>
+                            </ports>
+                        </tcp>
+                    </wait>
+                  </run>
+                </image>
+              </images>
+            </configuration>
+
+            <executions>
+              <execution>
+                <phase>package</phase>
+                <goals>
+                  <goal>build</goal>
+                </goals>
+              </execution>
+              <execution>
+                <id>pre-integration-test</id>
+                <phase>pre-integration-test</phase>
+                <goals>
+                  <goal>stop</goal>
+                </goals>
+              </execution>
+              <execution>
+                <id>post-integration-test</id>
+                <phase>post-integration-test</phase>
+                <goals>
+                  <goal>stop</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+
 </project>
