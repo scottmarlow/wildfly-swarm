@@ -25,19 +25,45 @@ import javax.naming.InitialContext;
 
 import com.mongodb.client.MongoDatabase;
 import org.jboss.arquillian.junit.Arquillian;
+import org.jboss.shrinkwrap.api.Archive;
+import org.jboss.shrinkwrap.api.asset.EmptyAsset;
+import org.jboss.shrinkwrap.api.ShrinkWrap;
+import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.test.api.ArquillianResource;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.wildfly.swarm.arquillian.DefaultDeployment;
+
+import org.wildfly.swarm.Swarm;
+import org.wildfly.swarm.arquillian.CreateSwarm;
+import org.wildfly.swarm.cdi.CDIFraction;
+import org.wildfly.swarm.ejb.EJBFraction;
+import org.wildfly.swarm.undertow.WARArchive;
+
+
+
+
+
+// import org.wildfly.swarm.arquillian.DefaultDeployment;
+
 
 /**
  * @author Scott Marlow
  */
 @RunWith(Arquillian.class)
-@DefaultDeployment
-public class MongoDBArquillianTest {
+//@DefaultDeployment
+public class MongoDBIT {
     @ArquillianResource
     InitialContext context;
+
+    @Deployment
+     public static Archive createDeployment() throws Exception {
+         WARArchive archive = ShrinkWrap.create(WARArchive.class, "MongoDBIT.war");
+         archive.addAsWebInfResource(EmptyAsset.INSTANCE, "beans.xml");
+         archive.addAsWebResource("project-defaults.yml");
+         archive.addPackage("org.wildfly.swarm.mongodb.test");
+         archive.addAllDependencies();
+         return archive;
+     }
 
     @Test
     public void resourceLookup() throws Exception {
@@ -55,7 +81,7 @@ public class MongoDBArquillianTest {
         assertNotNull(database);
     }
 
-    @EJB(lookup = "java:global/MongoDBArquillianTest/StatefulTestBean")
+    @EJB(lookup = "java:global/MongoDBIT/StatefulTestBean")
         private StatefulTestBean statefulTestBean;
 
     @Test
