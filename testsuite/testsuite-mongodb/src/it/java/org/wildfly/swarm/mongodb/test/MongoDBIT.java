@@ -39,31 +39,27 @@ import org.wildfly.swarm.cdi.CDIFraction;
 import org.wildfly.swarm.ejb.EJBFraction;
 import org.wildfly.swarm.undertow.WARArchive;
 
-
-
-
-
-// import org.wildfly.swarm.arquillian.DefaultDeployment;
+import org.wildfly.swarm.arquillian.DefaultDeployment;
 
 
 /**
  * @author Scott Marlow
  */
 @RunWith(Arquillian.class)
-//@DefaultDeployment
+@DefaultDeployment
 public class MongoDBIT {
     @ArquillianResource
     InitialContext context;
 
-    @Deployment
-     public static Archive createDeployment() throws Exception {
-         WARArchive archive = ShrinkWrap.create(WARArchive.class, "MongoDBIT.war");
-         archive.addAsWebInfResource(EmptyAsset.INSTANCE, "beans.xml");
-         archive.addAsWebResource("project-defaults.yml");
-         archive.addPackage("org.wildfly.swarm.mongodb.test");
-         archive.addAllDependencies();
-         return archive;
-     }
+//    @Deployment
+//     public static Archive createDeployment() throws Exception {
+//         WARArchive archive = ShrinkWrap.create(WARArchive.class, "MongoDBIT.war");
+//         archive.addAsWebInfResource(EmptyAsset.INSTANCE, "beans.xml");
+//         archive.addAsWebResource("project-defaults.yml");
+//         archive.addPackage("org.wildfly.swarm.mongodb.test");
+//         archive.addAllDependencies();
+//         return archive;
+//     }
 
     @Test
     public void resourceLookup() throws Exception {
