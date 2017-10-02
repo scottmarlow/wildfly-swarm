@@ -26,20 +26,39 @@ import javax.naming.InitialContext;
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.Row;
 import org.jboss.arquillian.junit.Arquillian;
+import org.jboss.shrinkwrap.api.Archive;
+import org.jboss.shrinkwrap.api.asset.EmptyAsset;
+import org.jboss.shrinkwrap.api.ShrinkWrap;
+import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.test.api.ArquillianResource;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.wildfly.swarm.arquillian.DefaultDeployment;
+
+import org.wildfly.swarm.Swarm;
+import org.wildfly.swarm.arquillian.CreateSwarm;
+import org.wildfly.swarm.cdi.CDIFraction;
+import org.wildfly.swarm.ejb.EJBFraction;
+import org.wildfly.swarm.undertow.WARArchive;
+
 
 /**
  * @author Scott Marlow
  */
 @RunWith(Arquillian.class)
-@DefaultDeployment
-public class CassandraArquillianTest {
+public class CassandraIT {
 
     @ArquillianResource
     InitialContext context;
+
+    @Deployment
+    public static Archive createDeployment() throws Exception {
+        WARArchive archive = ShrinkWrap.create(WARArchive.class, "CassandraIT.war");
+        archive.addAsWebInfResource(EmptyAsset.INSTANCE, "beans.xml");
+        archive.addAsWebResource("project-defaults.yml");
+        archive.addPackage("org.wildfly.swarm.cassandra.test");
+        archive.addAllDependencies();
+        return archive;
+    }
 
     @Test
     public void resourceLookup() throws Exception {
@@ -56,7 +75,7 @@ public class CassandraArquillianTest {
        assertNotNull(connection);
     }
 
-    @EJB(lookup = "java:global/CassandraArquillianTest/StatefulTestBean")
+    @EJB(lookup = "java:global/CassandraIT/StatefulTestBean")
         private StatefulTestBean statefulTestBean;
 
     @Test
