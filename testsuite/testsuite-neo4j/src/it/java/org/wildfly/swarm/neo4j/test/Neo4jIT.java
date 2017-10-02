@@ -27,21 +27,40 @@ import javax.inject.Named;
 import javax.naming.InitialContext;
 
 import org.jboss.arquillian.junit.Arquillian;
+import org.jboss.shrinkwrap.api.Archive;
+import org.jboss.shrinkwrap.api.asset.EmptyAsset;
+import org.jboss.shrinkwrap.api.ShrinkWrap;
+import org.jboss.arquillian.container.test.api.Deployment;
+
 import org.jboss.arquillian.test.api.ArquillianResource;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.neo4j.driver.v1.Driver;
-import org.wildfly.swarm.arquillian.DefaultDeployment;
+
+import org.wildfly.swarm.Swarm;
+import org.wildfly.swarm.arquillian.CreateSwarm;
+import org.wildfly.swarm.cdi.CDIFraction;
+import org.wildfly.swarm.ejb.EJBFraction;
+import org.wildfly.swarm.undertow.WARArchive;
 
 /**
  * @author Scott Marlow
  */
 @RunWith(Arquillian.class)
-@DefaultDeployment
-public class Neo4jArquillianTest {
+public class Neo4jIT {
 
     @ArquillianResource
     InitialContext context;
+
+    @Deployment
+    public static Archive createDeployment() throws Exception {
+        WARArchive archive = ShrinkWrap.create(WARArchive.class, "Neo4jIT.war");
+        archive.addAsWebInfResource(EmptyAsset.INSTANCE, "beans.xml");
+        archive.addAsWebResource("project-defaults.yml");
+        archive.addPackage("org.wildfly.swarm.neo4j.test");
+        archive.addAllDependencies();
+        return archive;
+    }
 
     @Test
     public void resourceLookup() throws Exception {
@@ -59,7 +78,7 @@ public class Neo4jArquillianTest {
         assertNotNull(database);
     }
 
-    @EJB(lookup = "java:global/Neo4jArquillianTest/StatefulTestBean")
+    @EJB(lookup = "java:global/Neo4jIT/StatefulTestBean")
         private StatefulTestBean statefulTestBean;
 
     @Test
@@ -95,7 +114,7 @@ public class Neo4jArquillianTest {
         }
     }
 
-    @EJB(lookup = "java:global/Neo4jArquillianTest/BMTStatefulTestBean")
+    @EJB(lookup = "java:global/Neo4jIT/BMTStatefulTestBean")
         private BMTStatefulTestBean bmtStatefulTestBean;
 
     @Test
