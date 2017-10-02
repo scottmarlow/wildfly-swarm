@@ -32,21 +32,38 @@ import com.tinkerpop.blueprints.Direction;
 import com.tinkerpop.blueprints.Edge;
 import com.tinkerpop.blueprints.impls.orient.OrientEdge;
 import org.jboss.arquillian.junit.Arquillian;
+import org.jboss.shrinkwrap.api.Archive;
+import org.jboss.shrinkwrap.api.asset.EmptyAsset;
+import org.jboss.shrinkwrap.api.ShrinkWrap;
+import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.test.api.ArquillianResource;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.wildfly.swarm.arquillian.DefaultDeployment;
 
+import org.wildfly.swarm.Swarm;
+import org.wildfly.swarm.arquillian.CreateSwarm;
+import org.wildfly.swarm.cdi.CDIFraction;
+import org.wildfly.swarm.ejb.EJBFraction;
+import org.wildfly.swarm.undertow.WARArchive;
 
 /**
  * @author Scott Marlow
  */
 @RunWith(Arquillian.class)
-@DefaultDeployment
-public class OrientDBArquillianTest extends AbstractTestCase {
+public class OrientDBIT extends AbstractTestCase {
 
     @ArquillianResource
     InitialContext context;
+
+    @Deployment
+    public static Archive createDeployment() throws Exception {
+        WARArchive archive = ShrinkWrap.create(WARArchive.class, "OrientDBIT.war");
+        archive.addAsWebInfResource(EmptyAsset.INSTANCE, "beans.xml");
+        archive.addAsWebResource("project-defaults.yml");
+        archive.addPackage("org.wildfly.swarm.orientdb.test");
+        archive.addAllDependencies();
+        return archive;
+    }
 
     @Test
     public void resourceLookup() throws Exception {
@@ -64,7 +81,7 @@ public class OrientDBArquillianTest extends AbstractTestCase {
        assertNotNull(databasePool);
     }
 
-    @EJB(lookup = "java:global/OrientDBArquillianTest/StatefulTestBean")
+    @EJB(lookup = "java:global/OrientDBIT/StatefulTestBean")
         private StatefulTestBean statefulTestBean;
 
     @Test
